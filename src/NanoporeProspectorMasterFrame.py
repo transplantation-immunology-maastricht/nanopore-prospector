@@ -6,6 +6,7 @@ from os.path import exists, split, isdir, join, abspath, basename, normpath#, is
 import Tkinter, Tkconstants, tkFileDialog, tkMessageBox
 from Tkconstants import *
 from Tkinter import *
+from AnalysisOptionsInputForm import *
 
 # Import my other submodules
 # Code exists in 
@@ -13,23 +14,16 @@ from Tkinter import *
 # Add that path to the sys.path for each submodule
 sys.path.insert(0, join(os.pardir,join('nit-picker','src')))
 sys.path.insert(0, join(os.pardir,join('saddle-bags','src')))
+sys.path.insert(0, join(os.pardir,join('saddle-bags','src')))
 
 from AlleleGui import AlleleGui
 #from nit_picker import *
 import nit_picker
 
-# This method is a directory-safe way to open up a write file.
-# TODO: Do i need this method?  
-#def createOutputFile(outputfileName):
-#    tempDir, tempFilename = split(outputfileName)
-#    if not isdir(tempDir):
-#        print('Making Directory:' + tempDir)
-#        makedirs(tempDir)
-#    resultsOutput = open(outputfileName, 'w')
-#    return resultsOutput
-
 class NanoporeProspectorMasterFrame(Tkinter.Frame):
     def __init__(self, root):
+        
+        #self.useBarcoding = False
 
         Tkinter.Frame.__init__(self, root)
         root.title("nanopore prospector")
@@ -44,6 +38,14 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
         # Otherwise provide defaults
 
         self.logFileName = None
+        
+        self.demultiplexReads = False
+           
+        self.minimumReadLength = 0
+        self.maximumReadLength = 999999
+        
+        self.minimumQuality = 0
+        self.maximumQuality = 99 
 
         # This is the directory the python executable is running from.
         FileAndPath = abspath(__file__)
@@ -105,8 +107,10 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
     def makeChooseIODirectoriesFrame(self):
         chooseDirectoryFrame = Tkinter.Frame(self)        
 
-        Tkinter.Button(chooseDirectoryFrame, text='Choose Input Directory ', command=self.chooseReadInputDirectory).grid(row=0, column=0, sticky=Tkconstants.W)
-        Tkinter.Button(chooseDirectoryFrame, text='Choose Output Directory', command=self.chooseReadOutputDirectory).grid(row=1, column=0, sticky=Tkconstants.W)
+        self.chooseInputButton = Tkinter.Button(chooseDirectoryFrame, text='Choose Input Directory ', command=self.chooseReadInputDirectory)
+        self.chooseInputButton.grid(row=0, column=0, sticky=Tkconstants.W)
+        self.chooseOutputButton = Tkinter.Button(chooseDirectoryFrame, text='Choose Output Directory', command=self.chooseReadOutputDirectory)
+        self.chooseOutputButton.grid(row=1, column=0, sticky=Tkconstants.W)
         
         self.inputDirectoryText = Tkinter.StringVar()
         self.inputDirectoryText.set('Where is your MinION Read Directory?')
@@ -121,10 +125,12 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
         
     def makeAnalysisButtonsFrame(self):
         analysisButtonsFrame = Tkinter.Frame(self) 
-        Tkinter.Button(analysisButtonsFrame, text='Initial Readstats', command=self.constructInitialReadStats).grid(row=0, column=0)
-        Tkinter.Button(analysisButtonsFrame, text='Readstat Options', command=self.specifyReadStatOptions).grid(row=0, column=1)
-        Tkinter.Button(analysisButtonsFrame, text='Run Full Analysis', command=self.runFullAnalysis).grid(row=1, column=0)
-        Tkinter.Button(analysisButtonsFrame, text='Analysis Options', command=self.specifyAnalysisOptions).grid(row=1, column=1)
+        self.analysisOptionsButton = Tkinter.Button(analysisButtonsFrame, text='Analysis Options', command=self.specifyReadStatOptions)
+        self.analysisOptionsButton.grid(row=0, column=0)
+        self.prepareReadsButton = Tkinter.Button(analysisButtonsFrame, text='Demultiplex + Prepare Reads', command=self.constructInitialReadStats)
+        self.prepareReadsButton.grid(row=1, column=0)
+        self.runAnalysisButton = Tkinter.Button(analysisButtonsFrame, text='Run Full Analysis', command=self.runFullAnalysis)
+        self.runAnalysisButton.grid(row=2, column=0)
         return analysisButtonsFrame
         
         
@@ -158,9 +164,12 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
     
     def makeMoreInfoFrame(self):    
         moreInfoFrame = Tkinter.Frame(self)  
-        Tkinter.Button(moreInfoFrame, text='How to use this tool', command=self.howToUse).grid(row=0, column=0)
-        Tkinter.Button(moreInfoFrame, text='Contacting or Citing MUMC', command=self.contactInformation).grid(row=0, column=1)
-        Tkinter.Button(moreInfoFrame, text='SaddleBags - A (Novel) Allele Submission Tool', command=self.launchSaddleBags).grid(row=0, column=2)
+        self.howToUseButton = Tkinter.Button(moreInfoFrame, text='How to use this tool', command=self.howToUse)
+        self.howToUseButton.grid(row=0, column=0)
+        self.citationButton = Tkinter.Button(moreInfoFrame, text='Contacting or Citing MUMC', command=self.contactInformation)
+        self.citationButton.grid(row=0, column=1)
+        self.saddlebagsButton = Tkinter.Button(moreInfoFrame, text='SaddleBags - A (Novel) Allele Submission Tool', command=self.launchSaddleBags)
+        self.saddlebagsButton.grid(row=0, column=2)
         return moreInfoFrame
         
 
@@ -173,6 +182,8 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
         #tkMessageBox.showinfo('Need to open allelesub tool','Popup a window containing the allele submission tool please.')
         # TODO: This works but the interface is messed up.
         # I think saddlebags is using "self" to assign variables when it shouldnt. They should assign to the frame instead?
+        # Problem is, i should be making a toplevel object.  I can fix this.
+        # See how i did it in specifyReadStatOptions
         saddleBagsRoot = Tkinter.Tk()
         AlleleGui(saddleBagsRoot).pack()
         saddleBagsRoot.mainloop()
@@ -242,87 +253,175 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
     # TODO: all of these analysis buttons.  Do something....  
     
     def constructInitialReadStats(self):
-        self.logMessage('Calculating initial read stats')
-        
-        self.enableInterface(False)
-        
-        # Do we have all the options available?
-        # What options are there?
-        # Threads? No.
-        # Barcoding?  How to get this info from the user?
-        # Input and Output directories look good?
-        # Minimum Read Length / Maximum Read Length
-        # MinMax Quality
+        self.logMessage('Step 1.) Calculating initial read stats')
+
+        self.disableGUI()
 
         # Run nit-picker for output directory
         # TODO: fix these parameters, especially sample ID. 
-        # Get the quality filters from somewhere.
-        # get the barcode location from somewhwere, or use a different path.
-        
-        #Quality :  23 <= AvgQ <= 32
-        #Length: 2400 <= Length <= 4000
+
         # TODO: RUn this in a thread, so the GUI can update.
 
         nitPickerOutputDirectory = join(self.outputDirectoryText.get(), '1_prepared_reads')
-        nit_picker.prepareReads(self.inputDirectoryText.get()
-            , nitPickerOutputDirectory
-            , 'TEMPSAMPLEID'
-            , '/home/ben/Github/nanopore-prospector/nit-picker/barcodes/barcodes_96_bc_kit.txt'
-            , 2400
-            , 4000
-            , 23
-            , 32 )
-            
-        
-        
+
+        if not exists(nitPickerOutputDirectory):
+            makedirs(nitPickerOutputDirectory)
+
+        if (self.demultiplexReads):
+            try:
+                # PyInstaller creates a temp folder and stores path in _MEIPASS
+                barcodeFilePath = join(sys._MEIPASS, 'barcodes_96_bc_kit.txt')
+                #print('using packaged MEIPASS directory to find barcode.')
+            except Exception:
+                barcodeFilePath = join(os.path.abspath('.'),'../nit-picker/barcodes/barcodes_96_bc_kit.txt')
+                #print('using local path to barcode kit file.')
+
+            nit_picker.prepareReads(self.inputDirectoryText.get()
+                , nitPickerOutputDirectory
+                , 'READS'
+                , barcodeFilePath
+                , self.minimumReadLength
+                , self.maximumReadLength
+                , self.minimumQuality
+                , self.maximumQuality )
+        else:
+            nit_picker.prepareReads(self.inputDirectoryText.get()
+                , nitPickerOutputDirectory
+                , 'READS'
+                , None
+                , self.minimumReadLength
+                , self.maximumReadLength
+                , self.minimumQuality
+                , self.maximumQuality )
+
         # Popup information about what we just did.
         
         # Are we in windows? 
         #If yes, open explorer with the read stats directory
         # If no, popup a dialog with the directory, user can do it themselves.
         
-        self.enableInterface(True)
+        #self.enableInterface(True)
+        #self.toggleGUI(True)
+        self.enableGUI()
         
         self.logMessage('Done calculating initial read stats')
         
 
     def specifyReadStatOptions(self):
         print('Specifying ReadStat Options.....')
+    
+        self.disableGUI()
+        
+        readStatOptionsRoot = Tkinter.Toplevel()
+        readStatOptionsRoot.bind("<Destroy>", self.enableGUI)
+        AnalysisOptionsInputForm(readStatOptionsRoot, self).pack()
+        
+        # Set the X and the Y Position of the options window, so it is nearby.  
+        readStatOptionsRoot.update()        
+        windowXpos = str(self.parent.winfo_geometry().split('+')[1])
+        windowYpos = str(self.parent.winfo_geometry().split('+')[2])
+        newGeometry = (str(readStatOptionsRoot.winfo_width()) + 'x' 
+            + str(readStatOptionsRoot.winfo_height()) + '+' 
+            + str(windowXpos) + '+' 
+            + str(windowYpos))
+        readStatOptionsRoot.geometry(newGeometry)
+        
+        #print ('the children:' + str(readStatOptionsRoot.children))
+        #print ('it is a type of:' + str(type(readStatOptionsRoot.children)))
+        childGUIObject = readStatOptionsRoot.children[list(readStatOptionsRoot.children)[0]]
+        #print ('found child object:' + str(type(childGUIObject)))
+        
+        # Set initial options
+        if(self.demultiplexReads):
+            childGUIObject.chooseDemultiplexIntVar.set(1)
+        else: 
+            childGUIObject.chooseDemultiplexIntVar.set(2)
+            
+        childGUIObject.inputMinLength.set(self.minimumReadLength)
+        childGUIObject.inputMaxLength.set(self.maximumReadLength)
+        childGUIObject.inputMinQuality.set(self.minimumQuality)
+        childGUIObject.inputMaxQuality.set(self.maximumQuality)
+
+        readStatOptionsRoot.mainloop()
+
+    def enableGUI(self, event=None):
+        self.toggleGUI(True)  
+        
+    def disableGUI(self):
+        self.toggleGUI(False)   
+        
+    def toggleGUI(self, isEnabled): 
+        #print ('Toggling GUI Widgets:' + str(isEnabled))
+         
+        newState = (NORMAL if (isEnabled) else DISABLED)
+        
+        # Choosing the widgets individually, this makes the most sense I think.
+        self.chooseInputButton.config(state=newState) 
+        self.chooseOutputButton.config(state=newState) 
+        
+        self.prepareReadsButton.config(state=newState)
+        self.analysisOptionsButton.config(state=newState) 
+        self.runAnalysisButton.config(state=newState) 
+        
+        self.howToUseButton.config(state=newState)
+        self.citationButton.config(state=newState)
+        self.saddlebagsButton.config(state=newState)        
+
         
     def runFullAnalysis(self):
-        print('Starting a full analysis.....')
+        #print('Starting a full analysis.....')
+        self.logMessage('Starting a full analysis.....')
+        
+        # 1) Nitpicker to prepare reads
+        self.constructInitialReadStats()        
+        # 2) Sort reads by HLA Locus
+        self.sortByLocus()        
+        # 3) Assemble each locus file
+        self.assembleSortedReads()        
+        # 4) Allele Call results if possible
+        self.alleleCall()        
+        # 5) Summarize Results
+        self.summarizeResults()
+        
+    def sortByLocus(self):
+        self.logMessage('Step 2.) Sort reads by HLA Locus')
+        
+    def assembleSortedReads(self):
+        self.logMessage('Step 3.) Assemble sorted Reads')
+        
+    def alleleCall(self):
+        self.logMessage('Step 4.) HLA Allele Calling')
+        
+    def summarizeResults(self):
+        self.logMessage('Step 5.) Summarize Results')
+        
                 
-    def specifyAnalysisOptions(self):
-        print('Specifying Analysis Options.....')
-
-    def enableInterface(self, enable):
-        #self.submitButton.config(state='disabled')
-         #self.submitButton.config(state='normal')
-        if(enable):            
-            # TODO: Something in this method, it does nothing right now.; 
-            # disable the buttons and stuff, so people dont break stuff
-            print('Enabling the user interface')
-        else:
-            print('Disabling the user interface')
 
     # chooseReadInputDirectory method is called when the user presses the input directory button
     def chooseReadInputDirectory(self):
         print ('Choosing an input directory.')
-        self.enableInterface(False)
+        #self.enableInterface(False)
+        self.disableGUI()
         self.setInputDir(tkFileDialog.askdirectory(**self.dir_opt))
-        self.enableInterface(True)        
+        #print('my file dialog returned this value:')
+        #self.enableInterface(True)        
+        self.enableGUI()
         
     # chooseReadInputDirectory method is called when the user presses the input directory button
     def chooseReadOutputDirectory(self):        
         print ('Choosing an output directory.')
-        self.enableInterface(False)        
+        self.disableGUI()
+        #self.enableInterface(False)        
         self.setOutputDir(tkFileDialog.askdirectory(**self.dir_opt))
-        self.enableInterface(True)
+        #self.enableInterface(True)
+        self.enableGUI()
         
 
     # setInputDir is a subprocess to be called when an input directory is selected.
     def setInputDir(self, currentInputDirectory):
         self.inputDirectoryText.set(currentInputDirectory)
+        
+        print ('Just set the self.inputDirectory text to this:' + self.inputDirectoryText.get())
         
         # TODO: Is there at least one fastq file in this directory?  
         
