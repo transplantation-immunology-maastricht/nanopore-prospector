@@ -2,11 +2,12 @@
 import os
 import datetime
 from os import makedirs#, listdir
-from os.path import exists, split, isdir, join, abspath, basename, normpath#, isfile,
+from os.path import exists, split, isdir, isfile, join, abspath, basename, normpath#, isfile,
 import Tkinter, Tkconstants, tkFileDialog, tkMessageBox
 from Tkconstants import *
 from Tkinter import *
 from AnalysisOptionsInputForm import *
+#from serial.win32 import ReadFile
 
 # Import my other submodules
 # Code exists in 
@@ -14,11 +15,17 @@ from AnalysisOptionsInputForm import *
 # Add that path to the sys.path for each submodule
 sys.path.insert(0, join(os.pardir,join('nit-picker','src')))
 sys.path.insert(0, join(os.pardir,join('saddle-bags','src')))
-sys.path.insert(0, join(os.pardir,join('saddle-bags','src')))
+sys.path.insert(0, join(os.pardir,join('punkin-chunker','src')))
+sys.path.insert(0, join(os.pardir,join('allele-wrangler','src')))
 
-from AlleleGui import AlleleGui
-#from nit_picker import *
+#from AlleleGui import AlleleGui
+from nit_picker import *
 import nit_picker
+
+from punkin_chunker import *
+import punkin_chunker
+
+from AlleleWrangler import AlleleWrangler
 
 class NanoporeProspectorMasterFrame(Tkinter.Frame):
     def __init__(self, root):
@@ -94,6 +101,9 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
             resultsOutput = open(self.logFileName, 'a')
             resultsOutput.write(fullLogMessage)
             resultsOutput.close()
+            
+        # This repaints the window, we can see what's going on.
+        self.update()   
     
     def makeInstructionsFrame(self):
         instructionsFrame = Tkinter.Frame(self)
@@ -102,8 +112,7 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
         self.instructionText.set('Use this interface to look at a group of \nMinION Reads containing HLA amplicon sequences:')
         Tkinter.Label(instructionsFrame, width=80, height=5, textvariable=self.instructionText).pack()
         return instructionsFrame
-        
-        
+      
     def makeChooseIODirectoriesFrame(self):
         chooseDirectoryFrame = Tkinter.Frame(self)        
 
@@ -122,7 +131,6 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
         
         return chooseDirectoryFrame
         
-        
     def makeAnalysisButtonsFrame(self):
         analysisButtonsFrame = Tkinter.Frame(self) 
         self.analysisOptionsButton = Tkinter.Button(analysisButtonsFrame, text='Analysis Options', command=self.specifyReadStatOptions)
@@ -132,7 +140,6 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
         self.runAnalysisButton = Tkinter.Button(analysisButtonsFrame, text='Run Full Analysis', command=self.runFullAnalysis)
         self.runAnalysisButton.grid(row=2, column=0)
         return analysisButtonsFrame
-        
         
     def makeAnalysisLogFrame(self):
         logFrame = Tkinter.Frame(self)
@@ -176,8 +183,7 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
 
         # Create a frame so people can choose the read directory
         #self.featureInputFrame = Tkinter.Frame(self)
-        
-        
+         
     def launchSaddleBags(self):
         #tkMessageBox.showinfo('Need to open allelesub tool','Popup a window containing the allele submission tool please.')
         # TODO: This works but the interface is messed up.
@@ -190,6 +196,7 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
         
     # This method should popup some instruction text in a wee window.
     # This should be explicit on how to use the tool.    
+    
     def howToUse(self):
         tkMessageBox.showinfo('How to use this tool',
             'This software is to be used to create an\n'
@@ -251,62 +258,7 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
  
       
     # TODO: all of these analysis buttons.  Do something....  
-    
-    def constructInitialReadStats(self):
-        self.logMessage('Step 1.) Calculating initial read stats')
-
-        self.disableGUI()
-
-        # Run nit-picker for output directory
-        # TODO: fix these parameters, especially sample ID. 
-
-        # TODO: RUn this in a thread, so the GUI can update.
-
-        nitPickerOutputDirectory = join(self.outputDirectoryText.get(), '1_prepared_reads')
-
-        if not exists(nitPickerOutputDirectory):
-            makedirs(nitPickerOutputDirectory)
-
-        if (self.demultiplexReads):
-            try:
-                # PyInstaller creates a temp folder and stores path in _MEIPASS
-                barcodeFilePath = join(sys._MEIPASS, 'barcodes_96_bc_kit.txt')
-                #print('using packaged MEIPASS directory to find barcode.')
-            except Exception:
-                barcodeFilePath = join(os.path.abspath('.'),'../nit-picker/barcodes/barcodes_96_bc_kit.txt')
-                #print('using local path to barcode kit file.')
-
-            nit_picker.prepareReads(self.inputDirectoryText.get()
-                , nitPickerOutputDirectory
-                , 'READS'
-                , barcodeFilePath
-                , self.minimumReadLength
-                , self.maximumReadLength
-                , self.minimumQuality
-                , self.maximumQuality )
-        else:
-            nit_picker.prepareReads(self.inputDirectoryText.get()
-                , nitPickerOutputDirectory
-                , 'READS'
-                , None
-                , self.minimumReadLength
-                , self.maximumReadLength
-                , self.minimumQuality
-                , self.maximumQuality )
-
-        # Popup information about what we just did.
-        
-        # Are we in windows? 
-        #If yes, open explorer with the read stats directory
-        # If no, popup a dialog with the directory, user can do it themselves.
-        
-        #self.enableInterface(True)
-        #self.toggleGUI(True)
-        self.enableGUI()
-        
-        self.logMessage('Done calculating initial read stats')
-        
-
+ 
     def specifyReadStatOptions(self):
         print('Specifying ReadStat Options.....')
     
@@ -365,7 +317,10 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
         
         self.howToUseButton.config(state=newState)
         self.citationButton.config(state=newState)
-        self.saddlebagsButton.config(state=newState)        
+        self.saddlebagsButton.config(state=newState)   
+        
+        # This repaints the window, we can see what's going on.
+        self.update()      
 
         
     def runFullAnalysis(self):
@@ -383,19 +338,165 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
         # 5) Summarize Results
         self.summarizeResults()
         
+        
+        
+        
+    def constructInitialReadStats(self):
+        self.logMessage('Step 1.) Calculating initial read stats')
+        self.disableGUI()
+
+        # Run nit-picker for output directory
+        # TODO: fix these parameters, especially sample ID. 
+        # TODO: RUn this in a thread, so the GUI can update.
+
+        preparedReadsOutputDirectory = join(self.outputDirectoryText.get(), '1_prepared_reads')
+        
+        sampleID = 'READS'
+
+        if not exists(preparedReadsOutputDirectory):
+            makedirs(preparedReadsOutputDirectory)
+
+        if (self.demultiplexReads):
+            try:
+                # PyInstaller creates a temp folder and stores path in _MEIPASS
+                barcodeFilePath = join(sys._MEIPASS, 'barcodes_96_bc_kit.txt')
+                #print('using packaged MEIPASS directory to find barcode.')
+            except Exception:
+                barcodeFilePath = join(os.path.abspath('.'),'../nit-picker/barcodes/barcodes_96_bc_kit.txt')
+                #print('using local path to barcode kit file.')
+
+            nit_picker.prepareReads(self.inputDirectoryText.get()
+                , preparedReadsOutputDirectory
+                , sampleID
+                , barcodeFilePath
+                , self.minimumReadLength
+                , self.maximumReadLength
+                , self.minimumQuality
+                , self.maximumQuality )
+        else:
+            nit_picker.prepareReads(self.inputDirectoryText.get()
+                , preparedReadsOutputDirectory
+                , sampleID
+                , None
+                , self.minimumReadLength
+                , self.maximumReadLength
+                , self.minimumQuality
+                , self.maximumQuality )
+
+        # TODO: Popup information about what we just did.        
+        # Are we in windows? 
+        # If yes, open explorer with the read stats directory
+        # If no, popup a dialog with the directory, user can do it themselves.
+
+        self.logMessage('Done calculating initial read stats')
+        self.enableGUI()  
+        
     def sortByLocus(self):
         self.logMessage('Step 2.) Sort reads by HLA Locus')
+        self.disableGUI()
+        
+        # TODO: What if it's demultiplexed?
+        # I should sort each barcode.
+        # Make a loop, find barcodes, sort each one in a subrdirectory
+        # What if i use some other sample ID, other than READS
+        # TODO: Look for fastq files dynamically in output directory.        
+        sampleID = 'READS'        
+        
+        # TODO: threadCount should be a parameter somewhere.
+        # Specified in the options, probably.
+        threadCount = 2
+        
+        #preparedReadsInputFile = join(join(self.outputDirectoryText.get(), '1_prepared_reads'),sampleID + '_Pass.fastq')
+        preparedReadsInput = join(self.outputDirectoryText.get(), '1_prepared_reads')
+        sortedReadsOutputDirectory = join(join(self.outputDirectoryText.get(), '2_sorted_reads'), sampleID)
+        if not exists(sortedReadsOutputDirectory):
+            makedirs(sortedReadsOutputDirectory)
+            
+            
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            sortReferencePath = join(sys._MEIPASS, 'HLA_ClassI_GeneRef.fasta')
+            #print('using packaged MEIPASS directory to find barcode.')
+        except Exception:
+            sortReferencePath = join(os.path.abspath('.'),'../punkin-chunker/inputData/HLA_ClassI_GeneRef.fasta')
+            #print('using local path to barcode kit file.')
+            
+        punkin_chunker.sortDirectory(preparedReadsInput, sortedReadsOutputDirectory, sortReferencePath, threadCount)
+            
+        
+        
+        
+        self.logMessage('Done sorting reads by HLA Locus')
+        self.enableGUI()
         
     def assembleSortedReads(self):
         self.logMessage('Step 3.) Assemble sorted Reads')
+        self.disableGUI()
+        
+        # TODO: Deal with sample IDs better. 
+        sampleID = 'READS'  
+        
+        sortedReadsOutputDirectory = join(join(self.outputDirectoryText.get(), '2_sorted_reads'), sampleID)
+        readAssemblyDirectory = join(join(self.outputDirectoryText.get(), '3_assembled_reads'), sampleID)
+        
+        if not exists(readAssemblyDirectory):
+            makedirs(readAssemblyDirectory)
+        
+        # for each barcode folder in this directory
+        for sortedReadDirectoryObject in os.listdir(sortedReadsOutputDirectory):
+            
+            fullBarcodeDirPath = join(sortedReadsOutputDirectory,sortedReadDirectoryObject)
+            # Should only be directories under here.
+            # Either barcode directories, or a "pass" folder
+            if (isfile(fullBarcodeDirPath)):
+                raise Exception('There is a file in the sorted read output directory. I expected only barcode directories:' + str(sortedReadDirectoryObject))
+            elif (isdir(fullBarcodeDirPath)):
+                # We found a barcode folder. I should assemble the fastq files in here.
+                #self.logMessage('Assembling reads in this directory:' + fullBarcodeDirPath)
+                for currentReadFileName in os.listdir(fullBarcodeDirPath):
+                    # Only fastq files
+                    if(".fastq"== currentReadFileName[-6:] or ".fq" == currentReadFileName[-3:]):
+                        
+                        currentReadFilePath = join(fullBarcodeDirPath, currentReadFileName)
+                        currentAssemblyOutputDirectory = join(join(readAssemblyDirectory, sortedReadDirectoryObject),currentReadFileName)
+                        
+                        self.logMessage('Assembling these reads:' + str(currentReadFilePath))
+                        
+                        # TODO Parameters
+                        numberIterations = 10
+                        numberThreads = 4
+                        
+                        # TODO: fix these parameters.
+                        # I should pass in iteration numbers etc.
+                        myAlleleWrangler = AlleleWrangler(currentReadFilePath, currentAssemblyOutputDirectory, None, numberIterations, numberThreads)
+                        myAlleleWrangler.analyzeReads()
+
+                pass
+            else:
+                raise Exception('This object is neither a file or directory. How mysterious. I expected only barcode directories:' + str(fullBarcodeDirPath))
+
+        
+        
+        self.logMessage('Done assembling sorted Reads')
+        self.enableGUI()
         
     def alleleCall(self):
         self.logMessage('Step 4.) HLA Allele Calling')
+        self.disableGUI()
+        
+        self.logMessage('Just kidding. This feature must be implemented')
+        
+        self.logMessage('Done with HLA Allele Calling')
+        self.enableGUI()
         
     def summarizeResults(self):
         self.logMessage('Step 5.) Summarize Results')
+        self.disableGUI()
         
-                
+        self.logMessage('Just kidding. This feature must be implemented')
+        
+        self.logMessage('Done Summarizing Results')
+        self.enableGUI()
 
     # chooseReadInputDirectory method is called when the user presses the input directory button
     def chooseReadInputDirectory(self):
