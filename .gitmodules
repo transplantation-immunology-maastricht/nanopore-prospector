@@ -4,3 +4,11 @@
 [submodule "nit-picker"]
 	path = nit-picker
 	url = https://github.com/transplantation-immunology/nit-picker
+[submodule "punkin-chunker"]
+	path = punkin-chunker
+	url = https://github.com/transplantation-immunology/punkin-chunker
+	branch = master
+[submodule "allele-wrangler"]
+	path = allele-wrangler
+	url = https://github.com/transplantation-immunology/allele-wrangler
+	branch = master

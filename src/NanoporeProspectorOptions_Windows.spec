@@ -22,11 +22,13 @@
 
 block_cipher = None
 
+# TODO: I should include the file from punkin chunker.
+# It is the GeneRef.fasta file. This is how i sort by gene
 
 a = Analysis(['NanoporeProspectorMain.py'],
              binaries=None,
-             datas= [ ('../nit-picker/barcodes/barcodes_96_bc_kit.txt', '') ],
-             hiddenimports=['six', 'packaging', 'packaging.requirements', 'packaging.version', 'packaging.specifiers', 'Tkinter', 'tkFileDialog', 'Tkconstants', 'Bio', 'Bio.Seq', 'matplotlib', 'pylab', 'numpy'],
+             datas= [ ('../nit-picker/barcodes/barcodes_96_bc_kit.txt', '') , ('../punkin-chunker/inputData/HLA_ClassI_GeneRef.fasta', '') ],
+             hiddenimports=['six', 'packaging', 'packaging.requirements', 'packaging.version', 'packaging.specifiers', 'Tkinter', 'tkFileDialog', 'Tkconstants', 'Bio', 'Bio.Seq', 'Bio.Blast', 'Bio.Blast.NCBIXML', 'matplotlib', 'pylab', 'pysam', 'numpy'],
              hookspath=[],
              runtime_hooks=[],
              excludes=['tkinter'],
