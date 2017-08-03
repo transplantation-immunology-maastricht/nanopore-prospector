@@ -16,7 +16,7 @@ from AnalysisOptionsInputForm import *
 sys.path.insert(0, join(os.pardir,join('nit-picker','src')))
 sys.path.insert(0, join(os.pardir,join('saddle-bags','src')))
 sys.path.insert(0, join(os.pardir,join('punkin-chunker','src')))
-sys.path.insert(0, join(os.pardir,join('allele-wrangler','src')))
+#sys.path.insert(0, join(os.pardir,join('allele-wrangler','src')))
 
 #from AlleleGui import AlleleGui
 from nit_picker import *
@@ -25,7 +25,7 @@ import nit_picker
 from punkin_chunker import *
 import punkin_chunker
 
-from AlleleWrangler import AlleleWrangler
+#from AlleleWrangler import AlleleWrangler
 
 class NanoporeProspectorMasterFrame(Tkinter.Frame):
     def __init__(self, root):
@@ -468,8 +468,8 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
                         
                         # TODO: fix these parameters.
                         # I should pass in iteration numbers etc.
-                        myAlleleWrangler = AlleleWrangler(currentReadFilePath, currentAssemblyOutputDirectory, None, numberIterations, numberThreads)
-                        myAlleleWrangler.analyzeReads()
+                        #myAlleleWrangler = AlleleWrangler(currentReadFilePath, currentAssemblyOutputDirectory, None, numberIterations, numberThreads)
+                        #myAlleleWrangler.analyzeReads()
 
                 pass
             else:
