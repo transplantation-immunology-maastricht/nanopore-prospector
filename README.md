@@ -29,7 +29,7 @@ To set up the environment in anaconda:
 
 Linux/Mac:  
 ```
-conda create --name minionvironment biopython six pycurl pysam
+conda create --name minionvironment biopython six pycurl pysam scikit-learn
 source activate minionvironment  
 pip install pyinstaller packaging matplotlib
 source deactivate  

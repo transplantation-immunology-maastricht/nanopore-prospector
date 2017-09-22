@@ -17,13 +17,15 @@ sys.path.insert(0, join(os.pardir,join('nit-picker','src')))
 sys.path.insert(0, join(os.pardir,join('saddle-bags','src')))
 sys.path.insert(0, join(os.pardir,join('punkin-chunker','src')))
 sys.path.insert(0, join(os.pardir,join('allele-wrangler','src')))
+# TODO I think these path imports aren't very good.
 
 #from AlleleGui import AlleleGui
-from nit_picker import *
-import nit_picker
+from nit_picker import prepareReads
+#import nit_picker
 
-from punkin_chunker import *
-import punkin_chunker
+#from punkin_chunker import punkin_chunker
+from punkin_chunker import sortDirectory
+#import punkin_chunker
 
 from AlleleWrangler import AlleleWrangler
 
@@ -43,6 +45,7 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
     def initialize(self):
         # TODO: Load from a configuration file.  I should be able to save / load a configuration file
         # Otherwise provide defaults
+        # I have good config file code in Saddlebags
 
         self.logFileName = None
         
@@ -178,55 +181,25 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
         self.saddlebagsButton = Tkinter.Button(moreInfoFrame, text='SaddleBags - A (Novel) Allele Submission Tool', command=self.launchSaddleBags)
         self.saddlebagsButton.grid(row=0, column=2)
         return moreInfoFrame
-        
-
-
-        # Create a frame so people can choose the read directory
-        #self.featureInputFrame = Tkinter.Frame(self)
-         
+     
     def launchSaddleBags(self):
         #tkMessageBox.showinfo('Need to open allelesub tool','Popup a window containing the allele submission tool please.')
         # TODO: This works but the interface is messed up.
         # I think saddlebags is using "self" to assign variables when it shouldnt. They should assign to the frame instead?
         # Problem is, i should be making a toplevel object.  I can fix this.
         # See how i did it in specifyReadStatOptions
+        # TODO This actually doesn't work at all, I renamed the saddlebags classes.
         saddleBagsRoot = Tkinter.Tk()
         AlleleGui(saddleBagsRoot).pack()
         saddleBagsRoot.mainloop()
         
     # This method should popup some instruction text in a wee window.
     # This should be explicit on how to use the tool.    
-    
+    # TODO: This howToUse method is pretty weak.    
     def howToUse(self):
-        tkMessageBox.showinfo('How to use this tool',
-            'This software is to be used to create an\n'
-            + 'EMBL-formatted submission document,\n'
-            + 'which specifies a (novel) HLA allele.\n\n'       
-                       
-            + 'This tool requires you to submit a\n'
-            + 'full length HLA allele, including\n'
-            + '5\' and 3\' UTRs.\n\n'
-            
-            + 'Use capital letters for exons,\n'
-            + 'lowercase for introns & UTRs.\n\n'
-            
-            + 'Push the "Example Sequence" button to see a small example of'
-            + ' a formatted sequence.\n'
-            + 'Sequences should follow this pattern:\n'
-            + '5\'utr EX1 int1 EX2 ... EX{X} 3\'utr\n\n'
-            
-            + 'To use this tool:\n'
-            + '1.) Fill in a Sample ID, Gene Name, and Allele.'
-            + ' This text will be included in the submission.\n'
-            + '2.) Paste your formatted sequence in the\n'
-            + 'Annotated Sequence text area.\n'
-            + '3.) Push \"Generate an EMBL submission\" button'
-            + ' to generate a submission.\n'
-            + '4.) Push the "Save the submission" button'
-            + ' to store the submission on your computer.\nYou can submit this file to EMBL.\n\n'
-            
-            + 'All spaces, tabs, and newlines are'
-            + ' removed before the nucleotide sequence is translated.'
+        tkMessageBox.showinfo('Select a directory containing reads.\n'
+            + 'Do some analysis on the reads.'
+            + 'Ben:Fill in better how-to-use instructions.'
             )
         
     def contactInformation(self):
@@ -245,20 +218,11 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
             + 'all other inquiries can be directed\n'
             + 'to Marcel Tilanus:\n'
             + 'm.tilanus@mumc.nl\n\n'
-            
-            + 'This code will be hosted at:\n'
-            + 'https://github.com/transplantation-\nimmunology/EMBL-HLA-Submission\n'
-            + 'You will find more information on\n'
-            + 'EMBL\'s data format on that page.'
 
             )
 
- 
- 
- 
-      
+
     # TODO: all of these analysis buttons.  Do something....  
- 
     def specifyReadStatOptions(self):
         print('Specifying ReadStat Options.....')
     
@@ -351,7 +315,19 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
 
         preparedReadsOutputDirectory = join(self.outputDirectoryText.get(), '1_prepared_reads')
         
-        sampleID = 'READS'
+        
+        #if(self.demultiplexReads):            
+        #    sampleID = 'READS'
+        #else:
+        #    sampleID = 'READS'
+        
+        # TODO: I am always using the leaf directory name. Does this work for multiplexed and demultiplexed samples?
+        #self.inputDirectoryText.set(currentInputDirectory)
+        #parentDir = abspath(join(currentInputDirectory, os.pardir))
+        leafDirName = basename(normpath(self.inputDirectoryText.get()))
+        sampleID = leafDirName
+       # suggestedOutputDirectory = join(parentDir,leafDirName + '_analysis')
+                 
 
         if not exists(preparedReadsOutputDirectory):
             makedirs(preparedReadsOutputDirectory)
@@ -365,7 +341,7 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
                 barcodeFilePath = join(os.path.abspath('.'),'../nit-picker/barcodes/barcodes_96_bc_kit.txt')
                 #print('using local path to barcode kit file.')
 
-            nit_picker.prepareReads(self.inputDirectoryText.get()
+            prepareReads(self.inputDirectoryText.get()
                 , preparedReadsOutputDirectory
                 , sampleID
                 , barcodeFilePath
@@ -374,7 +350,7 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
                 , self.minimumQuality
                 , self.maximumQuality )
         else:
-            nit_picker.prepareReads(self.inputDirectoryText.get()
+            prepareReads(self.inputDirectoryText.get()
                 , preparedReadsOutputDirectory
                 , sampleID
                 , None
@@ -421,7 +397,7 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
             sortReferencePath = join(os.path.abspath('.'),'../punkin-chunker/inputData/HLA_ClassI_GeneRef.fasta')
             #print('using local path to barcode kit file.')
             
-        punkin_chunker.sortDirectory(preparedReadsInput, sortedReadsOutputDirectory, sortReferencePath, threadCount)
+        sortDirectory(preparedReadsInput, sortedReadsOutputDirectory, sortReferencePath, threadCount)
             
         
         
@@ -463,12 +439,13 @@ class NanoporeProspectorMasterFrame(Tkinter.Frame):
                         self.logMessage('Assembling these reads:' + str(currentReadFilePath))
                         
                         # TODO Parameters
-                        numberIterations = 10
+                        numberIterations = 6
                         numberThreads = 4
+                        splitHeterozygotes = True
                         
                         # TODO: fix these parameters.
                         # I should pass in iteration numbers etc.
-                        myAlleleWrangler = AlleleWrangler(currentReadFilePath, currentAssemblyOutputDirectory, None, numberIterations, numberThreads)
+                        myAlleleWrangler = AlleleWrangler(currentReadFilePath, currentAssemblyOutputDirectory, None, numberIterations, numberThreads, splitHeterozygotes)
                         myAlleleWrangler.analyzeReads()
 
                 pass
