@@ -18,7 +18,10 @@
 # See the file README.MD for how to set up your anaconda environment.
 
 source /home/ben/minionvenv/bin/activate
-python Nanopore_Prospector_Main.py
+python Nanopore_Prospector_Main.py \
+ --reads="/home/ben/Github/nanopore_prospector/DRA_Analysis/Batch1Reads/1ddemultiplexed/BC04" \
+ --outputdir="/home/ben/Github/nanopore_prospector/DRA_Analysis/Batch1Reads/1ddemultiplexed/BC04_analysis"
+ 
 
 
 

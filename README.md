@@ -1,61 +1,48 @@
 # nanopore-prospector
 GUI Interface for analysis of MinION nanopore reads of HLA amplicon sequences
 
-Note: This project uses submodules to load code from related repos. It is necessary to download submodule code, in addition to the git clone instructions.
+To setup environment:
+Install python 3.6
+https://askubuntu.com/questions/865554/how-do-i-install-python-3-6-using-apt-get
 
-Use git clone --recursive https://github.com/transplantation-immunology/nanopore-prospector.git
+Create virtual environment
+virtualenv -p python3.6 minionvenv
 
-More info 
+activate virtual environment:
+source /home/ben/minionvenv/bin/activate
 
-https://stackoverflow.com/questions/8090761/pull-using-git-including-submodule
+blast and clustalo.
+Blast:
+https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download
 
-http://www.vogella.com/tutorials/GitSubmodules/article.html
+sudo apt-get install clustalo
 
-To update submodule code:
-git submodule update --recursive --remote
+numpy:
+pip install numpy
 
-to add a submodule to project
-git submodule add -b master [URL to Git repo] 
-git submodule init 
-git submodule update --remote
+biopython
+pip install biopython
 
+pylab / matplotlib
+pip install matplotlib
 
+skikit learn for kmeans clustering:
+pip install -U scikit-learn
 
-## To configure Anaconda
-Anaconda uses separate environments to run your programs in.  
-Install Anaconda for python 2.7.  
-https://www.continuum.io/downloads  
-To set up the environment in anaconda:  
+pip install scipy
 
-Linux/Mac:  
-```
-conda create --name minionvironment biopython six pycurl pysam scikit-learn
-source activate minionvironment  
-pip install pyinstaller packaging matplotlib
-source deactivate  
-```  
-Windows:  
-```  
-conda create --name minionvironment biopython six pycurl pywin32 pysam  
-call activate minionvironment && pip install pyinstaller packaging matplotlib && call deactivate  
-```
+pip install pysam
 
+# Example Uses
 
+Run the main user interface:
 
-Also, you must install other things:
-pywin32 (for installing in windows.  Available in Conda.)
-pylab.  This is matplotlib. Pip can install this inside environment.
+bash Run_Nanopore_Prospector.sh
 
-BLAST
-```  
-Windows:  
-```  
-https://www.ncbi.nlm.nih.gov/books/NBK52637/
+Analyze Read Quality:
 
-aligners.  Don't I need to install thes? or no?
-clustalo
-bwalign
+bash Run_Analyze_Read_Quality.sh
 
+Run Prospector from command line:
 
-pysam must be upgraded using pip.  
-pip install pysam --upgrade
+bash Run_Prospector_CL.sh
