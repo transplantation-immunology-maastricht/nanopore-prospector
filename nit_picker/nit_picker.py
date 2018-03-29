@@ -13,8 +13,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with nanopore_prospector. If not, see <http://www.gnu.org/licenses/>.
 
-
-
 from os import listdir
 from os.path import join, isdir, isfile
 
@@ -27,8 +25,6 @@ from nanopore_prospector.common import getReadFileType
 
 from Bio.SeqIO import write
 from allele_wrangler.allele_wrangler import createOutputFile
-
-
 
 #nit_picker.prepareReads(readInput, outputResultDirectory, sampleID, barcodeFileLocation, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality )
 #inputReads and outputDirectory are necessary.  The rest can be "None" if you would like.            
