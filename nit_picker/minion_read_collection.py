@@ -93,6 +93,8 @@ class minionReadCollection:
             , "Avg Read Quality(Phred)"
             , join(outputDirectory,  str(sampleID) + '_' + simplePlotName))
         
+        
+        
         # TODO: I really only need to calculate these statistics against the pass reads. 
         # Can i filter that somehow?
         

@@ -520,6 +520,10 @@ class AlleleWrangler():
             #print ('alignment command:\n' + cmd)
             #system(cmd)
             
+            # TODO: Honeslty the -ax map-ont settings sometimes allow for some messed up alignments.
+            # It allows "secondary" alignments int he bam, which are not quite accurate
+            # Full of SNPs and makes the alignment a bit bogus.
+            # I am doing some tests, it might make more sense to use the asm5 or asm10 settings instead of the ONT settings.            
             cmd = ("minimap2 -ax map-ont " + 
                 referenceIndexName + " " +  
                 readFileLocation + 
