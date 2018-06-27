@@ -565,7 +565,7 @@ class NanoporeProspectorMasterFrame(Frame):
                                 numberIterations = 6
                                 numberThreads = 4
                                 splitHeterozygotes = True
-                                
+
                                 myAlleleWrangler = AlleleWrangler(currentReadFilePath, currentAssemblyOutputDirectory, None, numberIterations, numberThreads, splitHeterozygotes)
                                 currentAssemblyResults = myAlleleWrangler.analyzeReads()
                                 

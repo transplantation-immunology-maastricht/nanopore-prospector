@@ -134,7 +134,7 @@ def getBarcodeFilePath():
         barcodeFilePath = join(sys._MEIPASS, 'barcodes_96_bc_kit.txt')
         #print('using packaged MEIPASS directory to find barcode.')
     except Exception:
-        barcodeFilePath = join(abspath('.'),'nit_picker/barcodes/barcodes_96_bc_kit.txt')
+        barcodeFilePath = join(abspath('.'),'barcodes/barcodes_96_bc_kit.txt')
         #print('using local path to barcode kit file.')
 
     return barcodeFilePath

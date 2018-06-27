@@ -48,7 +48,7 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
         print ('Read input is a directory that exists.')
         allReads = minionReadCollection([])
         for currentInputReadFile in listdir(inputReads):
-            
+
             allReads.readInputFormat = getReadFileType(currentInputReadFile)
 
             print ('loading Reads from:' + str(join(inputReads,currentInputReadFile)))
@@ -70,7 +70,7 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
     for currentRead in allReads.readCollection:
         
         currentSeqLength = len(currentRead)
-        
+
         try:
             phredQualities = currentRead.letter_annotations["phred_quality"]                    
             currentAvgPhredQuality = mean(phredQualities)
@@ -90,7 +90,7 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
             or (maximumReadQuality is not None and currentAvgPhredQuality > maximumReadQuality))
             ):
             qualityRejectReads.append(currentRead)
-      
+
         # This read is okay.
         else:
             passReads.append(currentRead)
@@ -109,6 +109,7 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
     # a read stats is a tuple, with 2 arrays.
     # readstats is a 2d array, with lengths and qualities.
     readStats = {}
+
 
     # Output Reads
     if(len(allReads.readCollection)>0):
@@ -140,6 +141,8 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
                 readStats[key] = barcodeReadStats[key]
 
     writeReadStats(readStats, outputDirectory)
+
+
     return readStats
 
 def writeReadStats(readStats, outputDirectory):

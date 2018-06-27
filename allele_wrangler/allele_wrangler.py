@@ -100,19 +100,24 @@ class AlleleWrangler():
             # Was a reference sequence provided?
             if(self.referenceSequenceFileName is None):
                 print('No Reference was provided.  No problem, I can generate my own reference.')
-                self.createFirstGuessReferenceFromReads()            
+                self.createFirstGuessReferenceFromReads()
+
+                # i should only do this if we were NOT provided a reference. I don't need to iterate on a known reference. Ok.
+
+                self.currentIteration = 1
+                # TODO I think this consensusSequenceFileName is a wasted variable, shouldn't I just re-store it to the self.referenceSequenceFileName ? I think that's better.
+                consensusSequenceFileName = self.analysisRecurser(self.referenceSequenceFileName)
     
             else:
                 print('I was provided this reference filename:' + self.referenceSequenceFileName)
-                pass
-                # TODO I just commented this out, i already know i have a reference sequence.
-                #consensusSequenceFileName = self.wrangleRecurser(None, 1)            
-                #self.summarizeWrangling(consensusSequenceFileName)
-    
-            self.currentIteration = 1
-            consensusSequenceFileName = self.analysisRecurser(self.referenceSequenceFileName)
+                consensusSequenceFileName = self.referenceSequenceFileName
+                #TODO: there is something funny here and i cant remember why i did this. I'm passing the reference sequence as the consensus sequence.
+                # That's not correct and I think it is because I don't want to iterate on a reference sequence
+                # Maybe I need to...to generate a consensus sequence from this informaiton.
 
-            coverageResults = self.summarizeAnalysis(consensusSequenceFileName, self.splitHeterozygotes)
+                pass
+
+            coverageResults = self.summarizeAnalysis(consensusSequenceFileName)
         else:
             print ('Skipping this read file. Not enough reads to assemble:' + str(self.readInput))
             self.wranglerLog.write('Skipping this read file. Not enough reads to assemble:' + str(self.readInput))
@@ -121,13 +126,13 @@ class AlleleWrangler():
 
         return coverageResults
 
-    def summarizeAnalysis(self, finalConsensusSequence, splitHeterozygotes):  
+    def summarizeAnalysis(self, finalConsensusSequence):
         # TODO: I shouldnt need to pass in the splitHeterozygotes, since it is a class variable.
         print('\n\nSummarizing Analysis Results.') 
 
         try:
             coverageResults = {}
-            if(splitHeterozygotes):
+            if(self.splitHeterozygotes):
                 # TODO: Im passing in a lot of self variables here. I should be able to remove those.
                 
                 self.heterozygousDirectory = join(self.outputRootDirectory, 'HeterozygousAlignment')                        
@@ -194,7 +199,7 @@ class AlleleWrangler():
 
         # Heterozygous base list
         heterozygousBasesSummaryFile = createOutputFile(join(heterozygousConsensusDirectory,'HeterozygousBases.txt'))         
-        heterozygousBasesSummaryFile.write('List of Heterozygous Bases:')
+        heterozygousBasesSummaryFile.write('List of Heterozygous Bases:\n')
 
         # get list of Heterozygous Positions
         # TODO: I suppose I don't need to align 100% of reads to determine heterozygosity.
@@ -206,39 +211,134 @@ class AlleleWrangler():
             readCount = 0
             matchCount = 0
             mismatchCount = 0
+            insCount = 0
+            delCount = 0
+
+            # dictionary of base counts.
+
+
             
             referenceBase = alignmentRef.seq[pileupColumn.pos].upper()
             
-            # Iterate the Reads at this position           
-            for pileupRead in pileupColumn.pileups:
-                readCount += 1
-                # indels
-                if(pileupRead.is_del == 1 or pileupRead.indel > 0):
-                    mismatchCount += 1                
-                else:    
-                    currentBase = pileupRead.alignment.query_sequence[pileupRead.query_position].upper()                    
+            # Iterate the Reads at this position. Each read at each position is either:
+            # ins, Del, match, mismatch.
 
-                    if(currentBase == referenceBase):
-                        matchCount += 1
+            #TODO: is it possible to exclude secondary/supplemetnary in the pileups method?  No.
+            for pileupRead in pileupColumn.pileups:
+
+                #TODO: Important. Filter secondary / supplementary reads. This is causing problems, these secondary reads are FULL of snps.
+                # Difficulty: these parameters are on an aligned segment.
+
+                alignedSegmentObject = pileupRead.alignment
+
+                if(False):
+                    pass
+                elif(alignedSegmentObject.is_secondary):
+                    #print ('Secondary read at Position ' + str(pileupColumn.pos))
+                    pass
+                elif(alignedSegmentObject.is_supplementary):
+                    #print ('Supplementary read at Position ' + str(pileupColumn.pos))
+                    pass
+
+
+                # Just trying some things, not sure what these mean.
+                #elif (alignedSegmentObject.is_unmapped):
+                #    print('UNMAPPED READ!!!!!!!!!!!!!!!!!!! what does that mean?')
+                #elif (alignedSegmentObject.is_qcfail):
+                #    print('This read was a QC failure. What does that mean?????????????')
+
+                else:
+                    readCount += 1
+                    # indels
+                    if(pileupRead.is_del == 1):
+                        delCount += 1
+                    elif(pileupRead.indel > 0):
+                        insCount += 1
                     else:
-                        mismatchCount += 1
-                   
-            matchProportion = (1.0 * matchCount / readCount)
+                        currentBase = pileupRead.alignment.query_sequence[pileupRead.query_position].upper()
+
+                        if(currentBase == referenceBase):
+                            matchCount += 1
+                        else:
+                            mismatchCount += 1
+
+
+                # This is a cheap way to stop analysis early. I will only analyze the first 250 reads.
+                # Potential problem: are these reads sorted somehow? Maybe my numbers are biased by only looking at the
+                # first reads
+                # Todo: This is another parameter that can be tuned. Add to inputs? Maybe.
+                maxAnalyzedReadCounts = 250
+
+                if(readCount > maxAnalyzedReadCounts):
+                    break
+
+            matchProportion =      (1.0 * matchCount / readCount)
+            insertionProportion =  (1.0 * insCount / readCount)
+            deletionProportion =   (1.0 * delCount / readCount)
+            mismatchProportion =   (1.0 * mismatchCount / readCount)
+
             #print ('Position ' + str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Match/Mismatch : ' + str(matchCount) + '/' + str(mismatchCount))
             #print ('Match Percentage ' + str(matchProportion))
             
             # TODO: Should accepted match proprtion be a commandline parameter?
             # if > 75% of bases match, this is not a heterzygous position
-            if(matchProportion > .60):
+            baseCutoff = .70
+
+            if(matchProportion > baseCutoff or insertionProportion > baseCutoff or deletionProportion > baseCutoff):
                 pass
-                #print ('Position ' + str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Match/Mismatch : ' + str(matchCount) + '/' + str(mismatchCount))
+                #print ('Position ' + str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(insCount) + '/' + str(matchCount) + '/' + str(mismatchCount))
                 #print ('This position does not look heterozygous.')
+
+
             # If coverage is very low, we should not use this position
+            # This logic is flawed, i think this is never working.
             elif ((1.0 * pileupColumn.n / readCount) < .25):
                 pass
+
+            elif (mismatchProportion > baseCutoff):
+                pass
+            # I want to write a condition where we don't use the position if it's not clearly polymorphic.
+            #elif (False):
+            #    pass
+            # If the mismatch proportion is too high, what happens? What if there are 2 different bases that are mismatched, like if both my alleles have a different snp from reference. I'll miss that right now.
+
+            # TEMP, this is very temporary. This is specific to a reference.
+            # TODO : Fix these hard coded values.
+            # In a perfect world....I could tell what positions are heterozygous, but I can't.
+            # I can tell if this sequence is a homopolymer though, but looking at the bases around it.....But that's not the correct thing to do.
+            # I can keep this logic but make it a parameter. Big deletion regions are hard to analyze so I'm just ignoring them for now.
+            elif(5890 <= pileupColumn.pos <= 5970):
+                print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+                pass
+            elif (6203 <= pileupColumn.pos <= 6212):
+                print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+                pass
+            # Big String of A's
+            elif (774 <= pileupColumn.pos <= 796):
+                print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+                pass
+            #Known homopolymer positions....this is terrible programming.
+            # I could at least pass these in ad ignored positions....
+            elif (pileupColumn.pos in (403,430, 1479, 1510, 1683,
+                    1991, 1996, 1997, 2003, 2009, 2093, 2100, 2133, 2134, 2191,
+                    2262, 2289, 2294, 2342, 2449, 2450, 2524, 2647, 2663, 2732,
+                    2895, 2902, 3113, 3114, 3180, 3197, 3362, 3396, 3453, 3542,
+                    3551, 3665, 3832, 3903, 3953, 4108, 4109, 4400, 4639, 4698,
+                    4703, 4769, 4785, 4786, 4828, 4878, 5084, 5301, 5302, 5449,
+                    5575, 5597, 6155, 6279, 6280, 6314, 6375, 6376, 6712, 6755,
+                    6790, 7084, 7631, 7718, 7769, 7971, 7978, 8132, 8133, 8134,
+                    8314, 8315, 8352, 8476, 8477, 8478, 8642, 8650, 8651, 8652,
+                    8653, 8654, 8655, 8656, 8657, 8698, 8725, 8753, 8759
+                    )):
+                print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+                pass
+
+
             else:
-                #print ('HETEROZYGOUS Position ' + str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Match/Mismatch : ' + str(matchCount) + '/' + str(mismatchCount))
-                heterozygousBasesSummaryFile.write (str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Match/Mismatch : ' + str(matchCount) + '/' + str(mismatchCount) + '\n')
+                #heterozygousBasesSummaryFile.write (str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(insCount) + '/' + str(matchCount) + '/' + str(mismatchCount) + '\n')
+                heterozygousBasesSummaryFile.write(str(pileupColumn.pos) + ', Coverage ' + str(
+                    pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(
+                    insCount) + '/' + str(matchCount) + '/' + str(mismatchCount) + '\n')
                 heterozygousPositions.append(pileupColumn.pos)
                 
         heterozygousBasesSummaryFile.close()
@@ -270,6 +370,9 @@ class AlleleWrangler():
                     
                     # In this model, the distance is either 0 or 1. This was intentional but
                     # Maybe we can tune the algorithm using these distances.
+                    # This could actually be tuned to do the heterozygous split using ONLY snps.
+                    # TODO: if we're having problems splitting based on homopolymers check this spot.
+                    # Maybe, I want to count indels as 0, no distance.
                     
                     if(pileupRead.is_del == 1):
                         distanceArrays[readID][heterozygousPositionIndex] = 1
