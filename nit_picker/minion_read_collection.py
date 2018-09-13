@@ -66,7 +66,12 @@ class minionReadCollection:
         # Remove spaces for file names.
         simplePlotName = plotName.replace(' ','_')
         
-        # Reads
+        # Debuging a bit here.
+        #print('sampleID:' + sampleID)
+        #print('simplePlotName:' + simplePlotName)
+        #print('readInputFormat:' + str(self.readInputFormat))
+        #print('outputDirectory:' + str(outputDirectory))
+        
         readOutputFileName = join(outputDirectory, str(sampleID) + '_' + simplePlotName + '.' + self.readInputFormat)
         allReadOutputFile = createOutputFile(readOutputFileName)
         print ('writing the all read file. the format is ' + self.readInputFormat)

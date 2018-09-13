@@ -44,6 +44,10 @@ class QualityStatistics:
         self.referenceSequence = referenceSequence
         self.referenceLength = len(referenceSequence)
         
+        # Storing the new consensus as a list of characters. So i can modify it.
+        #self.newConsensus = list(referenceSequence)
+        self.newConsensus = referenceSequence
+        
         self.alignedReadCountsByPosition   = [0]*self.referenceLength
         # For this application, I assume that a read will always be a match, mismatch,insertion, or deletion. Never both. An indel is not a match.
         self.matchReadCountsByPosition     = [0]*self.referenceLength
@@ -283,15 +287,18 @@ class QualityStatistics:
             # TODO: Calculate the inserted text based on insertion length. For now i will call this SNP an I.
             self.snpCallsByPosition[referencePositionZeroBased] = 'I'
             
+            # TODO Change the consensus sequence for this insertion?
+            
         # Is there a deletion? Insertion count > match count * cutoff
         if(self.deletionReadCountsByPosition[referencePositionZeroBased]  > self.matchReadCountsByPosition[referencePositionZeroBased] * polymorphicBaseCutoff):
             self.snpCallsByPosition[referencePositionZeroBased] = '-'
+
+            # TODO Delete this base from the consensus sequence
      
         # If this position is polymorphic, also print this to the polymorphic positions output file.
         if( self.alignedReadCountsByPosition[referencePositionZeroBased] > 0 and matchPercent < polymorphicBaseCutoff):
             # Not an indel, this is probably a mismatch.
-            
-            
+
             maxBaseCount = max(
                 self.ACountsByPosition[referencePositionZeroBased]
                 ,self.GCountsByPosition[referencePositionZeroBased]
@@ -311,7 +318,28 @@ class QualityStatistics:
                 raise Exception('I made a mistake calculating the maximum base count for SNP detection.')
             
             
+            # TODO THis is a very rough way to get a new consensus sequence with SNPs. Fix this logic.
             
+            # If we're not in the deletion regions...
+            # TODO: Feed this as parameters somehow. I just don't want to analyze the regions with the complicated repeats.
+            if 4550 <= referencePositionZeroBased <= 4695:
+                # We are in the complicated delete region, lets not assign this snp.
+                pass
+            
+            elif 4909 <= referencePositionZeroBased <= 4918:
+                # This is the shorter deletion.
+                pass
+            else:
+            
+                # manipulating strings because they are immutable
+                #tempid = self.newConsensus.id
+                tempConsensus = list(self.newConsensus)
+                tempConsensus[referencePositionZeroBased] = self.snpCallsByPosition[referencePositionZeroBased]
+                self.newConsensus = "".join(tempConsensus)
+                #self.newConsensus.id = 'GeneratedConsensus'
+                # Put the SNP in our new consensus sequence
+                #self.newConsensus[referencePositionZeroBased] = self.snpCallsByPosition[referencePositionZeroBased]
+                
             #self.snpCallsByPosition[referencePositionZeroBased] = '!'
     
         
@@ -339,7 +367,9 @@ class QualityStatistics:
 
     def writeAlignmentSummary(self, alignmentSummaryOutputFilename):
         alignmentSummaryOutputFile = createOutputFile(alignmentSummaryOutputFilename)
-        polymorphicPositionsOutputFile = createOutputFile(alignmentSummaryOutputFilename.replace('.csv','.PolymorphicPositions.csv'))        
+        polymorphicPositionsOutputFile = createOutputFile(alignmentSummaryOutputFilename.replace('.csv','.PolymorphicPositions.csv'))
+        
+        newConsensusOutputFile = createOutputFile(alignmentSummaryOutputFilename.replace('.csv','.NewConsensus.fasta'))        
         
       
         #createOutputFile(outputfileName)
@@ -373,10 +403,16 @@ class QualityStatistics:
                 
             if(self.snpCallsByPosition[referencePositionZeroBased] is not None):
                 self.writeAlignmentSummaryLine(polymorphicPositionsOutputFile, referencePositionZeroBased, referenceBase, True)
-                
+    
         alignmentSummaryOutputFile.close()
         polymorphicPositionsOutputFile.close()
-        
+
+        # Write new consensus
+        #write([self.newConsensus], newConsensusOutputFile, 'fasta')  
+        newConsensusOutputFile.write('>GeneratedConsensusSequence\n')
+        newConsensusOutputFile.write(self.newConsensus + '\n')
+        newConsensusOutputFile.close()
+                
         self.writeSNPs(alignmentSummaryOutputFilename.replace('.csv','.SNPs.csv'))
 
     

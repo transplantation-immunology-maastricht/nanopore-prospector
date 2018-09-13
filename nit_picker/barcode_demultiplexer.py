@@ -57,8 +57,16 @@ def splitByBarcode(currentReadCollection, outputDirectory, barcodeFileNameWithPa
         #allReadFileOutputs[key] = open(allReadFileName, 'w')
         allBarcodeCollections[key] = minionReadCollection([])
         
+        # TODO: This is completely hardcoded. I need to assign the read format to the minion_read_collection.
+        # I should look this up based on the input data, i think i have a common method for finding file type.
+        allBarcodeCollections[key].readInputFormat = 'fastq'
+        
     #unbarcodedOutput = open(join(outputDirectory, 'unbarcoded_pass_reads.fastq'), 'w')
     unbarcodedReadCollection = minionReadCollection([])
+    
+    # TODO: This is completely hardcoded. I need to assign the read format to the minion_read_collection.
+    # I should look this up based on the input data, i think i have a common method for finding file type.
+    unbarcodedReadCollection.readInputFormat = 'fastq'
 
     print('Splitting by barcodes, Just a second...')
      
@@ -103,7 +111,10 @@ def splitByBarcode(currentReadCollection, outputDirectory, barcodeFileNameWithPa
         else:
             unbarcodedReadCollection.readCollection.append(rec)
             #SeqIO.write([rec], unbarcodedOutput, 'fastq')
-            
+       
+    # this is for a return value
+    barcodedReadStats = {}
+         
     #close output files. Delete empties and generate scatterplots
     for barcodeKey in barcodeList.keys():
         #print('How many reads for barcode:' + str(barcodeKey) + ':' + str(len(allBarcodeCollections[barcodeKey].readCollection)))
@@ -112,7 +123,15 @@ def splitByBarcode(currentReadCollection, outputDirectory, barcodeFileNameWithPa
         if (len(allBarcodeCollections[barcodeKey].readCollection) > 0 ):
             # calculate stats
             allBarcodeCollections[barcodeKey].summarizeSimpleReadStats()            
-            allBarcodeCollections[barcodeKey].outputReadPlotsAndSimpleStats(outputDirectory, 'Barcode ' + str(barcodeKey), sampleID, referenceFileLocation)
+            
+            
+            #Bug here, testing...
+            #print('Output a barcode file:')
+            #print('barcodeKey:' + str(barcodeKey))
+            #print('sampleid:' + str(sampleID))
+            #print('referencefilelocation:' + str(referenceFileLocation))
+            
+            barcodedReadStats[barcodeKey] = allBarcodeCollections[barcodeKey].outputReadPlotsAndSimpleStats(outputDirectory, 'Barcode ' + str(barcodeKey), sampleID, referenceFileLocation)
         
         else:
             #print('Barcode:' + str(barcodeKey) + ' has no reads. Nothing to do.')
@@ -120,13 +139,11 @@ def splitByBarcode(currentReadCollection, outputDirectory, barcodeFileNameWithPa
         
     # write the unbarcoded reads
     unbarcodedReadCollection.summarizeSimpleReadStats()
-    unbarcodedReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Unbarcoded Reads', sampleID, referenceFileLocation)
-        
-        
+    barcodedReadStats['unbarcoded'] = unbarcodedReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Unbarcoded Reads', sampleID, referenceFileLocation)
+    
     # TODO: Return a dictionary of read stats. This method will probably crash until i implement this.    
     # Every time i call "outputReadPlotsAndSimpleStats" I can put an entry in the dictionary.    
-        
-    print('Done.')
-
+    #return barcodeList.keys()
+    return barcodedReadStats
 
 

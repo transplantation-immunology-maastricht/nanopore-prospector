@@ -13,7 +13,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with nanopore_prospector. If not, see <http://www.gnu.org/licenses/>.
 
-
+# I'm deprecating this file. This logic is just to accept variables, it is repetition of the Nanopore_Prospector_main.py file.
+# So from now on don't use this main method, start with the NanoporeProspectorMain main method.
 
 # TODO Nitpicker: Lots of things:
 #nitpicker: put a progress bar on the read extractor and demultiplexer.
@@ -184,10 +185,13 @@ if __name__=='__main__':
     try:    
         if(readArgs()):
             print('Commandline arguments look fine.\n Now I will prepare the reads and calculate quality statistics.')
-            
-            prepareReads(readInput, outputResultDirectory, sampleID, barcodeFileLocation, referenceInput, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality )
-            
-            print ('Done with nit-picker for now. Have a nice day.')    
+
+            prepareReads(readInput, outputResultDirectory, sampleID, barcodeFileLocation, referenceInput,
+                         minimumReadLength, maximumReadLength, minimumQuality, maximumQuality)
+
+            print ('Done with nit-picker for now. Have a nice day.')
+
+
         else:
             print('\nI\'m giving up because I was not satisfied with your commandline arguments.')  
             
