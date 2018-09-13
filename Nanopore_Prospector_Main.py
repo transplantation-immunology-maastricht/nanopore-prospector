@@ -24,45 +24,17 @@ from os.path import isfile, isdir, join
 from nanopore_prospector.Nanopore_Prospector_Master_Frame import NanoporeProspectorMasterFrame
 from nit_picker.nit_picker import prepareReads
 from allele_wrangler.allele_wrangler import AlleleWrangler
-
-
-# TODO Move this code to allele_wrangler. That's where allele calling happens.
-#TODO: Talk to halagan about how i should do this now. 
-"""
-def alleleCall():
-    print ('I will attempt an allele call.')
-    
-    hlaSequence = 'CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTGGCTCTCAGGGTCTCAGGCCCCGAAGGCGGTGTATGGATTGGGGAGTCCCAGCCTTGGGGATTCCCCAACTCCGCAGTTTCTTTTCTCCCTCTCCCAACCTACGTAGGGTCCTTCATCCTGGATACTCACGACGCGGACCCAGTTCTCACTCCCATTGGGTGTCGGGTTTCCAGAGAAGCCAATCAGTGTCGTCGCGGTCGCTGTTCTAAAGTCCGCACGCACCCACCGGGACTCAGATTCTCCCCAGACGCCGAGGATGGCCGTCATGGCGCCCCGAACCCTCCTCCTGCTACTCTCGGGGGCCCTGGCCCTGACCCAGACCTGGGCGGGTGAGTGCGGGGTCGGGAGGGAAACCGCCTCTGCGGGGAGAAGCAAGGGGCCCTCCTGGCGGGGGCGCAGGACCGGGGGAGCCGCGCCGGGAGGAGGGTCGGGCAGGTCTCAGCCACTGCTCGCCCCCAGGCTCCCACTCCATGAGGTATTTCTTCACATCCGTGTCCCGGCCCGGCCGCGGGGAGCCCCGCTTCATCGCCGTGGGCTACGTGGACGACACGCAGTTCGTGCGGTTCGACAGCGACGCCGCGAGCCAGAAGATGGAGCCGCGGGCGCCGTGGATAGAGCAGGAGGGGCCGGAGTATTGGGACCAGGAGACACGGAATATGAAGGCCCACTCACAGACTGACCGAGCGAACCTGGGGACCCTGCGCGGCTACTACAACCAGAGCGAGGACGGTGAGTGACCCCGGCCCGGGGCGCAGGTCACGACCCCTCATCCCCCACGGACGGGCCAGGTCGCCCACAGTCTCCGGGTCCGAGATCCACCCCGAAGCCGCGGGACTCCGAGACCCTTGTCCCGGGAGAGGCCCAGGCGCCTTTACCCGGTTTCATTTTCAGTTTAGGCCAAAAATCCCCCCGGGTTGGTCGGGGCGGGGCGGGGCTCGGGGGACTGGGCTGACCGCGGGGTCGGGGCCAGGTTCTCACACCATCCAGATAATGTATGGCTGCGACGTGGGGCCGGACGGGCGCTTCCTCCGCGGGTACCGGCAGGACGCCTACGACGGCAAGGATTACATCGCCCTGAACGAGGACCTGCGCTCTTGGACCGCGGCGGACATGGCAGCTCAGATCACCAAGCGCAAGTGGGAGGCGGTCCATGCGGCGGAGCAGCGGAGAGTCTACCTGGAGGGCCGGTGCGTGGACGGGCTCCGCAGATACCTGGAGAACGGGAAGGAGACGCTGCAGCGCACGGGTACCAGGGGCCACGGGGCGCCTCCCTGATCGCCTATAGATCTCCCGGGCTGGCCTCCCACAAGGAGGGGAGACAATTGGGACCAACACTAGAATATCACCCTCCCTCTGGTCCTGAGGGAGAGGAATCCTCCTGGGTTTCCAGATCCTGTACCAGAGAGTGACTCTGAGGTTCCGCCCTGCTCTCTGACACAATTAAGGGATAAAATCTCTGAAGGAGTGACGGGAAGACGATCCCTCGAATACTGATGAGTGGTTCCCTTTGACACCGGCAGCAGCCTTGGGCCCGTGACTTTTCCTCTCAGGCCTTGTTCTCTGCTTCACACTCAATGTGTGTGGGGGTCTGAGTCCAGCACTTCTGAGTCTCTCAGCCTCCACTCAGGTCAGGACCAGAAGTCGCTGTTCCCTTCTCAGGGAATAGAAGATTATCCCAGGTGCCTGTGTCCAGGCTGGTGTCTGGGTTCTGTGCTCTCTTCCCCATCCCGGGTGTCCTGTCCATTCTCAAGATGGCCACATGCGTGCTGGTGGAGTGTCCCATGACAGATGCAAAATGCCTGAATTTTCTGACTCTTCCCGTCAGACCCCCCCAAGACACATATGACCCACCACCCCATCTCTGACCATGAGGCCACCCTGAGGTGCTGGGCCCTGGGCTTCTACCCTGCGGAGATCACACTGACCTGGCAGCGGGATGGGGAGGACCAGACCCAGGACACGGAGCTCGTGGAGACCAGGCCTGCAGGGGATGGAACCTTCCAGAAGTGGGCGGCTGTGGTGGTGCCTTCTGGAGAGGAGCAGAGATACACCTGCCATGTGCAGCATGAGGGTCTGCCCAAGCCCCTCACCCTGAGATGGGGTAAGGAGGGAGATGGGGGTGTCATGTCTCTTAGGGAAAGCAGGAGCCTCTCTGGAGACCTTTAGCAGGGTCAGGGCCCCTCACCTTCCCCTCTTTTCCCAGAGCTGTCTTCCCAGCCCACCATCCCCATCGTGGGCATCATTGCTGGCCTGGTTCTCCTTGGAGCTGTGATCACTGGAGCTGTGGTCGCTGCCGTGATGTGGAGGAGGAAGAGCTCAGGTGGAGAAGGGGTGAAGGGTGGGGTCTGAGATTTCTTGTCTCACTGAGGGTTCCAAGCCCCAGCTAGAAATGTGCCCTGTCTCATTACTGGGAAGCACCTTCCACAATCATGGGCCGACCCAGCCTGGGCCCTGTGTGCCAGCACTTACTCTTTTGTAAAGCACCTGTTAAAATGAAGGACAGATTTATCACCTTGATTACGGCGGTGATGGGACCTGATCCCAGCAGTCACAAGTCACAGGGGAAGGTCCCTGAGGACAGACCTCAGGAGGGCTATTGGTCCAGGACCCACACCTGCTTTCTTCATGTTTCCTGATCCCGCCCTGGGTCTGCAGTCACACATTTCTGGAAACTTCTCTGGGGTCCAAGACTAGGAGGTTCCTCTAGGACCTTAAGGCCCTGGCTCCTTTCTGGTATCTCACAGGACATTTTCTTCCCACAGATAGAAAAGGAGGGAGTTACACTCAGGCTGCAAGTAAGTATGAAGGAGGCTGATGCCTGAGGTCCTTGGGATATTGTGTTTGGGAGCCCATGGGGGAGCTCACCCACCCCACAATTCCTCCTCTAGCCACATCTTCTGTGGGATCTGACCAGGTTCTGTTTTTGTTCTACCCCAGGCAGTGACAGTGCCCAGGGCTCTGATGTGTCTCTCACAGCTTGTAAAGGTGAGAGCTTGGAGGGCCTGATGTGTGTTGGGTGTTGGGTGGAACAGTGGACACAGCTGTGCTATGGGGTTTCTTTGCGTTGGATGTATTGAGCATGCGATGGGCTGTTTAAGGTGTGACCCCTCACTGTGATGGATATGAATTTGTTCATGAATATTTTTTTCTATAGTGTGAGACAGCTGCCTTGTGTGGGACTGAGAGGCAAGAGTTGTTCCTGCCCTTCCCTTTGTGACTTGAAGAACCCTGACTTTGTTTCTGCAAAGGCACCTGCATGTGTCTGTGTTCGTGTAGGCATAATGTGAGGAGGTGGGGAGAGCACCCCACCCCCATGTCCACCATGACCCTCTTCCCACGCTGACCTGTGCTCCCTCTCCAATCATCTTTCCTGTTCCAGAGAGGTGGGGCTGAGGTGTCTCCATCTCTGTCTCAACTTCATGGTGCACTGAGCTGTAACTTCTTCCTTCCCTATTAAAA'
-    gene = 'HLA-A'
-    
-    print ('this sequence:\n')
-    print(hlaSequence)
-    
-    from Bio import SeqIO
-    from BioSQL import BioSeqDatabase
-    from seqann.sequence_annotation import BioSeqAnn
-    
-    import pygfe
-    
-    seq_file = 'test_dq.fasta'
-    gfe = pygfe.pyGFE()
-    server = BioSeqDatabase.open_database(driver="pymysql", user="root",
-        passwd="", host="localhost",
-                                                                                                                     db="bioseqdb")
-    seqann = BioSeqAnn(server=server)
-    seq_rec = list(SeqIO.parse(seq_file, 'fasta'))[0]
-    annotation = seqann.annotate(seq_rec, "HLA-DQB1")
-    gfe = gfe.get_gfe(annotation, "HLA-DQB1")
-    print(gfe)
-    
-"""   
+from Parse_IMGT_HLA.HLA_XML_to_fasta import parseImgtHla
+from find_homopolymers.find_homopolymers import findHomopolymers
 
 def readArgs():
-    # Default to None.  So I can easily check if they were not passed in.
+    # Trying to be consistent and global with my parameter inputs.
    
     global readInput
     global referenceInput
-    global outputResultDirectory
+    global inputFile
+    global outputDirectory
+    global outputFile
     global analysisAction
     global minimumReadLength
     global maximumReadLength
@@ -73,7 +45,9 @@ def readArgs():
     
     readInput                = None
     referenceInput           = None
-    outputResultDirectory    = None
+    inputFile                = None
+    outputDirectory          = None
+    outputFile               = None
     analysisAction           = None
     minimumReadLength        = None
     maximumReadLength        = None
@@ -90,8 +64,9 @@ def readArgs():
     # https://www.tutorialspoint.com/python/python_command_line_arguments.htm
     try:
         opts, args = getopt(argv[1:]
-            ,"m:M:q:Q:hvb:i:o:r:R:t:a:s:"
-            ,["minlen=", "maxlen=", "minqual=", "maxqual=", "help", "version","barcode=", "iterations=","outputdir=","reads=","reference=",'threads=','action=', 'sampleid='])
+            ,"m:M:q:Q:hvb:I:i:o:O:r:R:t:a:s:"
+            ,["minlen=", "maxlen=", "minqual=", "maxqual=", "help", "version","barcode=", "iterations=", "inputfile="
+                ,"outputdirectory=","outputfile=","reads=","reference=",'threads=','action=', 'sampleid='])
 
         for opt, arg in opts:
 
@@ -126,12 +101,18 @@ def readArgs():
                 #print (SoftwareVersion)
                 referenceInput = arg
 
-            elif opt in ("-i", "--iterations"):
+            elif opt in ("-I", "--iterations"):
                 numberIterations = arg
-                
-            elif opt in ("-o", "--outputdir"):
-                outputResultDirectory = arg
-                
+
+            elif opt in ("-i", "--inputfile"):
+                inputFile = arg
+
+            elif opt in ("-o", "--outputdirectory"):
+                outputDirectory = arg
+
+            elif opt in ("-O", "--outputfile"):
+                outputFile = arg
+
             elif opt in ("-a", "--action"):
                 analysisAction = arg
 
@@ -146,38 +127,30 @@ def readArgs():
         #usage()
         return False
 
-    
-
-    # Consensus,threads is optional, the rest are necessary.
-    # Sanity Checks
-    #if (int(numberIterations) < 1):
-    ##    print('You must specify an Iteration count >= 1.')
-    
-    if (isfile(readInput)):
-        print ('Read input is a file that exists.')
-    elif (isdir(readInput)):
-        print ('Read input is a directory that exists.')
-    else :
-        print ('I don\'t understand the read input specified, it is not a file or directory:' + readInput)
-        return False
+    # TODO: Move the sanity checks inside the use cases.
+    #if (isfile(readInput)):
+#        print ('Read input is a file that exists.')
+#    elif (isdir(readInput)):
+#        print ('Read input is a directory that exists.')
+#    else :
+#        print ('I don\'t understand the read input specified, it is not a file or directory:' + readInput)
+#        return False
 
     return True
 
 
 if __name__=='__main__':
-
     # TODO: Read args? What args do i even need?
     readArgs()
     
     # Quick and Dirty way to do a full analysis. Sort, Split, Assemble all reads.
     if(analysisAction=="fullanalysis"):
-        if(readInput is not None
-            and outputResultDirectory is not None):
-            #print ('I am ready to run this from the command line.')
+        # Quick sanity check.
+        if(readInput is not None and outputDirectory is not None):
+            # TODO: I don't need the gui to do this, i am cheating here.
             root = Tk()
             app = NanoporeProspectorMasterFrame(root)
-            #root.mainloop()
-            
+
             # Load config file? 
             # Actually maybe this already happened.
             
@@ -220,6 +193,7 @@ if __name__=='__main__':
         # I can hetero split with or without a reference sequence.
 
         # TODO Parameters don't come from anywhere, i can pass this in.
+        # T for threads? Im already passing iteration count.
         #numberIterations = 6
         numberThreads = 8
         splitHeterozygotes = True
@@ -238,17 +212,66 @@ if __name__=='__main__':
             minimumReadLength, maximumReadLength, minimumQuality, maximumQuality)
 
     # TODO: Analysis Actions to add:
-    # HLA Allele Analysis. I can merge that code into prospector.
     # Splicing analysis.
     # Demultiplex
     # Sort by Gene.
 
 
+    elif (analysisAction == 'splicinganalysis'):
+        print('I would love to do the MinION Read Splicing Analysis, but Ben has not yet implemented it. Please ask him to.')
+
+    elif (analysisAction == 'collectreads'):
+        # Nanopolish will require access to .fast5 read files in order to polish a consensus sequence.
+        # After sorting and preparing the reads, a .fastq file should contain the reads that support a consensus.
+        # Supply the fastq read file, the directory of the fast5 reads.
+
+        print('Ben has not implemented this functionality yet.')
+
+    elif (analysisAction == 'combinesnps'):
+        print('Ben has not implemented this functionality yet.')
+
+    elif (analysisAction == 'convertreads'):
+        # Convert a fastq file to a fasta file, effectively deleting the quality scores.
+        # Required:
+        # -i / --inputfile
+        # -o
+
+    elif (analysisAction == 'extractsequences'):
+        print('The main method is in extract_sequences_main.py, move it here.')
+
+    elif (analysisAction == 'findfiles'):
+        print('The main method is in find_files_main.py, move it here.')
+
+    elif (analysisAction == 'namenovels'):
+        print('This logic is in name_novels_main.py, migrate the logic here.')
 
 
+    elif (analysisAction == 'fillsnptable'):
+        print('Ben has not implemented this functionality yet.')
 
+    elif (analysisAction == 'findhomopolymers'):
+        # Input a .fasta full of sequences, output some statistics on the homopolymers in these sequences.
+        # Required:
+        # -i / --inputfile
+        # -o / --outputdirectory
+        print('Searching for Homopolymers.')
+
+        # TODO: Sanity Checks on required inputs
+        findHomopolymers(inputFile, outputDirectory)
+
+    elif (analysisAction == 'hlaalleleanalysis'):
+        # To input a IMGT XML file and generate HLA .fasta reference sequences, for a variety of purposes.
+        # Required:
+        # -i / --inputfile
+        # -o / --outputdirectory
+        print('Extracting allele sequences from IPD-IMGT/HLA XML file.')
+
+        # TODO: Sanity Checks on required inputs
+        parseImgtHla(inputFile, outputDirectory)
 
     else:
+        # Start the main GUI, so we can do some analysis steps.
+        # Honestly this GUI is a PITA, and doesn't provide much.
         root = Tk()
         app = NanoporeProspectorMasterFrame(root)
         root.mainloop()
