@@ -26,6 +26,7 @@ from nit_picker.nit_picker import prepareReads
 from allele_wrangler.allele_wrangler import AlleleWrangler
 from Parse_IMGT_HLA.HLA_XML_to_fasta import parseImgtHla
 from find_homopolymers.find_homopolymers import findHomopolymers
+from convert_reads.convert_reads import fastqToFasta
 
 def readArgs():
     # Trying to be consistent and global with my parameter inputs.
@@ -59,14 +60,17 @@ def readArgs():
     if(len(argv) < 3):
         print ('I don\'t think you have enough arguments.\n')
         #usage()
-        return False    
+        return False
 
+    print('Attempting to load commandline arguments')
     # https://www.tutorialspoint.com/python/python_command_line_arguments.htm
     try:
         opts, args = getopt(argv[1:]
             ,"m:M:q:Q:hvb:I:i:o:O:r:R:t:a:s:"
             ,["minlen=", "maxlen=", "minqual=", "maxqual=", "help", "version","barcode=", "iterations=", "inputfile="
                 ,"outputdirectory=","outputfile=","reads=","reference=",'threads=','action=', 'sampleid='])
+
+        print (str(len(opts)) + ' arguments found.')
 
         for opt, arg in opts:
 
@@ -115,6 +119,9 @@ def readArgs():
 
             elif opt in ("-a", "--action"):
                 analysisAction = arg
+
+            elif opt in ("-s", "--sampleid"):
+                sampleID = arg
 
             else:
                 print('Unknown Commandline Option:' + str(opt) + ':' + str(arg))
@@ -168,13 +175,13 @@ if __name__=='__main__':
             
         else:
             raise Exception("Can not do a full analysis without a read input and output directory.")
-        
+
     elif(analysisAction=="heterosplit"):
 
         print('Doing the hetero split.')
 
         # Calculate the prepared reads folder name.
-        preparedReadsFolder = join(outputResultDirectory, '1_prepared_reads')
+        preparedReadsFolder = join(outputDirectory, '1_prepared_reads')
 
         # Quality control, reject big reads etc.
         # I will pass "None" as the reference sequence here because
@@ -187,7 +194,7 @@ if __name__=='__main__':
             preparedReadsFileName = join(preparedReadsFolder, 'minion_reads_Pass.fastq')
         else:
             preparedReadsFileName = join(preparedReadsFolder, 'minion_reads_All.fastq')
-        splitReadsFolder = join(outputResultDirectory, '2_phased_reads')
+        splitReadsFolder = join(outputDirectory, '2_phased_reads')
 
         # I don't need to sort the reads in this case....Just hetero split
         # I can hetero split with or without a reference sequence.
@@ -208,7 +215,7 @@ if __name__=='__main__':
     elif (analysisAction == "snpanalysis"):
         print('Doing some SNP analysis now.')
 
-        prepareReads(readInput, outputResultDirectory, sampleID, None, referenceInput,
+        prepareReads(readInput, outputDirectory, sampleID, None, referenceInput,
             minimumReadLength, maximumReadLength, minimumQuality, maximumQuality)
 
     # TODO: Analysis Actions to add:
@@ -230,11 +237,12 @@ if __name__=='__main__':
     elif (analysisAction == 'combinesnps'):
         print('Ben has not implemented this functionality yet.')
 
-    elif (analysisAction == 'convertreads'):
+    elif (analysisAction == 'fastqtofasta'):
         # Convert a fastq file to a fasta file, effectively deleting the quality scores.
         # Required:
         # -i / --inputfile
-        # -o
+        # -O / --outputfile
+        fastqToFasta(inputFile, outputFile, 36)
 
     elif (analysisAction == 'extractsequences'):
         print('The main method is in extract_sequences_main.py, move it here.')
@@ -244,7 +252,6 @@ if __name__=='__main__':
 
     elif (analysisAction == 'namenovels'):
         print('This logic is in name_novels_main.py, migrate the logic here.')
-
 
     elif (analysisAction == 'fillsnptable'):
         print('Ben has not implemented this functionality yet.')
