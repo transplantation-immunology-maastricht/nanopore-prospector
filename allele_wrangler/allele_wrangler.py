@@ -267,7 +267,7 @@ class AlleleWrangler():
                 # Potential problem: are these reads sorted somehow? Maybe my numbers are biased by only looking at the
                 # first reads
                 # Todo: This is another parameter that can be tuned. Add to inputs? Maybe.
-                maxAnalyzedReadCounts = 250
+                maxAnalyzedReadCounts = 1000
 
                 if(readCount > maxAnalyzedReadCounts):
                     break
@@ -297,48 +297,56 @@ class AlleleWrangler():
 
             elif (mismatchProportion > baseCutoff):
                 pass
-            # I want to write a condition where we don't use the position if it's not clearly polymorphic.
-            #elif (False):
-            #    pass
-            # If the mismatch proportion is too high, what happens? What if there are 2 different bases that are mismatched, like if both my alleles have a different snp from reference. I'll miss that right now.
 
-            # TEMP, this is very temporary. This is specific to a reference.
-            # TODO : Fix these hard coded values.
-            # In a perfect world....I could tell what positions are heterozygous, but I can't.
-            # I can tell if this sequence is a homopolymer though, but looking at the bases around it.....But that's not the correct thing to do.
-            # I can keep this logic but make it a parameter. Big deletion regions are hard to analyze so I'm just ignoring them for now.
-            elif(5890 <= pileupColumn.pos <= 5970):
-                print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
-                pass
-            elif (6203 <= pileupColumn.pos <= 6212):
-                print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
-                pass
-            # Big String of A's
-            elif (774 <= pileupColumn.pos <= 796):
-                print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
-                pass
-            #Known homopolymer positions....this is terrible programming.
-            # I could at least pass these in ad ignored positions....
-            elif (pileupColumn.pos in (403,430, 1479, 1510, 1683,
-                    1991, 1996, 1997, 2003, 2009, 2093, 2100, 2133, 2134, 2191,
-                    2262, 2289, 2294, 2342, 2449, 2450, 2524, 2647, 2663, 2732,
-                    2895, 2902, 3113, 3114, 3180, 3197, 3362, 3396, 3453, 3542,
-                    3551, 3665, 3832, 3903, 3953, 4108, 4109, 4400, 4639, 4698,
-                    4703, 4769, 4785, 4786, 4828, 4878, 5084, 5301, 5302, 5449,
-                    5575, 5597, 6155, 6279, 6280, 6314, 6375, 6376, 6712, 6755,
-                    6790, 7084, 7631, 7718, 7769, 7971, 7978, 8132, 8133, 8134,
-                    8314, 8315, 8352, 8476, 8477, 8478, 8642, 8650, 8651, 8652,
-                    8653, 8654, 8655, 8656, 8657, 8698, 8725, 8753, 8759
-                    )):
-                print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
-                pass
+            # These are the hardcoded values I used for the DRA analysis. Cheating.
+
+            # # I want to write a condition where we don't use the position if it's not clearly polymorphic.
+            # #elif (False):
+            # #    pass
+            # # If the mismatch proportion is too high, what happens? What if there are 2 different bases that are mismatched, like if both my alleles have a different snp from reference. I'll miss that right now.
+            #
+            # # TEMP, this is very temporary. This is specific to a reference.
+            # # TODO : Fix these hard coded values.
+            # # In a perfect world....I could tell what positions are heterozygous, but I can't.
+            # # I can tell if this sequence is a homopolymer though, but looking at the bases around it.....But that's not the correct thing to do.
+            # # I can keep this logic but make it a parameter. Big deletion regions are hard to analyze so I'm just ignoring them for now.
+            # elif(5890 <= pileupColumn.pos <= 5970):
+            #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+            #     pass
+            # elif (6203 <= pileupColumn.pos <= 6212):
+            #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+            #     pass
+            # # Big String of A's
+            # elif (774 <= pileupColumn.pos <= 796):
+            #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+            #     pass
+            # #Known homopolymer positions....this is terrible programming.
+            # # I could at least pass these in ad ignored positions....
+            # elif (pileupColumn.pos in (403,430, 1479, 1510, 1683,
+            #         1991, 1996, 1997, 2003, 2009, 2093, 2100, 2133, 2134, 2191,
+            #         2262, 2289, 2294, 2342, 2449, 2450, 2524, 2647, 2663, 2732,
+            #         2895, 2902, 3113, 3114, 3180, 3197, 3362, 3396, 3453, 3542,
+            #         3551, 3665, 3832, 3903, 3953, 4108, 4109, 4400, 4639, 4698,
+            #         4703, 4769, 4785, 4786, 4828, 4878, 5084, 5301, 5302, 5449,
+            #         5575, 5597, 6155, 6279, 6280, 6314, 6375, 6376, 6712, 6755,
+            #         6790, 7084, 7631, 7718, 7769, 7971, 7978, 8132, 8133, 8134,
+            #         8314, 8315, 8352, 8476, 8477, 8478, 8642, 8650, 8651, 8652,
+            #         8653, 8654, 8655, 8656, 8657, 8698, 8725, 8753, 8759
+            #         )):
+            #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+            #     pass
 
 
             else:
                 #heterozygousBasesSummaryFile.write (str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(insCount) + '/' + str(matchCount) + '/' + str(mismatchCount) + '\n')
                 heterozygousBasesSummaryFile.write(str(pileupColumn.pos) + ', Coverage ' + str(
                     pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(
-                    insCount) + '/' + str(matchCount) + '/' + str(mismatchCount) + '\n')
+                    insCount) + '/' + str(matchCount) + '/' + str(mismatchCount)
+                    + ' : ' + str(round(deletionProportion,2)) + '/'
+                    + str(round(insertionProportion, 2)) + '/'
+                    + str(round(matchProportion, 2)) + '/'
+                    + str(round(mismatchProportion, 2))
+                    + '\n')
                 heterozygousPositions.append(pileupColumn.pos)
                 
         heterozygousBasesSummaryFile.close()
