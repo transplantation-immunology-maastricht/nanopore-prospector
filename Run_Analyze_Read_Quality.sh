@@ -23,10 +23,15 @@ ResultsOutputDirectory="/home/ben/Github/nanopore_prospector/33332_analyze_read_
 ReferenceFile="/home/ben/Github/nanopore_prospector/33332_analyze_read_quality/HLA_Reference_33332_A24.fasta"
 BarcodeFile="/home/ben/Github/nanopore_prospector/nit_picker/barcodes/barcodes_96_bc_kit.txt"
 
-python nit_picker_main.py \
+
+
+
+python nanopore_prospector_main.py \
  --reads=$ReadDirectory \
  --outputdir=$ResultsOutputDirectory \
  --reference=$ReferenceFile \
  --minqual=34 \
  --minlen=3100 \
- --maxlen=3300
+ --maxlen=3300 \
+  --action="snpanalysis"
+

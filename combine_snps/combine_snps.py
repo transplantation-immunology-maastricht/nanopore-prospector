@@ -19,8 +19,7 @@ class SnpArrayStructure:
     
     def __init__(self):
         self.sequenceName = None
-        
-        
+
         self.snpPositions = []
         self.refBases = []
         self.snpBases = []
