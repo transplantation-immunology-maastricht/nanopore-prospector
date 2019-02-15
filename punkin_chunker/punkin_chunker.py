@@ -29,7 +29,7 @@ from io import StringIO
 from punkin_chunker.blast_result import blastResult
 from nanopore_prospector.common import logMessageToFile, getConfigurationValue
 
-from nit_picker.minion_read_collection import minionReadCollection
+from nit_picker.minion_read_collection import MinionReadCollection
 
 from threading import Thread
 from time import sleep
@@ -378,7 +378,7 @@ def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutpu
     
     global FileOutputFormat
 
-    unsortedReadCollection = minionReadCollection([])
+    unsortedReadCollection = MinionReadCollection([])
     unsortedReadCollection.readInputFormat = FileOutputFormat
     unsortedReadCollection.gene = None
 
@@ -454,7 +454,7 @@ def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutpu
                 #    currentGeneLevelOutputFile = createOutputFile(join(outputDirectory,'HLA-' + currentGene + '.' + FileOutputFormat))
                 #    geneLevelOutputFiles.append((currentGene,currentGeneLevelOutputFile,1))
                 if not foundGeneLevelOutput:
-                    newGeneLevelReadCollection = minionReadCollection([currentBlastResult.readRecord])
+                    newGeneLevelReadCollection = MinionReadCollection([currentBlastResult.readRecord])
                     newGeneLevelReadCollection.gene = currentGene
                     newGeneLevelReadCollection.readInputFormat = FileOutputFormat
                     geneLevelReadCollections.append(newGeneLevelReadCollection)

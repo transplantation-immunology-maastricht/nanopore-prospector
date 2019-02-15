@@ -27,6 +27,8 @@ from allele_wrangler.allele_wrangler import AlleleWrangler
 from Parse_IMGT_HLA.HLA_XML_to_fasta import parseImgtHla
 from find_homopolymers.find_homopolymers import findHomopolymers
 from convert_reads.convert_reads import fastqToFasta
+from combine_snps.consensus_from_snp_table import consensusSequenceFromSNPFiles
+from combine_snps.name_novels import nameNovels
 
 def readArgs():
     # Trying to be consistent and global with my parameter inputs.
@@ -128,8 +130,10 @@ def readArgs():
                 raise Exception('Unknown Commandline Option:' + str(opt) + ':' + str(arg))
             
 
-    except GetoptError:
+    except GetoptError as err:
         print ('Something seems wrong with your commandline parameters.')
+        print (str(err.msg))
+        print ('Unknown option: ' + str(err.opt))
         #print (errorMessage)
         #usage()
         return False
@@ -149,12 +153,15 @@ def readArgs():
 if __name__=='__main__':
     # TODO: Read args? What args do i even need?
     readArgs()
-    
+
+    # TODO: how to check parameters in general? Obviously each action has different inputs, can I check that they exist?
+    # In a general sense?
+
     # Quick and Dirty way to do a full analysis. Sort, Split, Assemble all reads.
     if(analysisAction=="fullanalysis"):
         # Quick sanity check.
         if(readInput is not None and outputDirectory is not None):
-            # TODO: I don't need the gui to do this, i am cheating here.
+            # TODO: I don't need the gui to do this, i am cheating here. Separate the logic from the GUI. Maybe even delete the GUI, i hate it.
             root = Tk()
             app = NanoporeProspectorMasterFrame(root)
 
@@ -251,7 +258,10 @@ if __name__=='__main__':
         print('The main method is in find_files_main.py, move it here.')
 
     elif (analysisAction == 'namenovels'):
-        print('This logic is in name_novels_main.py, migrate the logic here.')
+        nameNovels(referenceInput, inputFile, outputDirectory)
+
+    elif (analysisAction == 'consensusfromsnps'):
+        consensusSequenceFromSNPFiles(referenceInput, inputFile, outputDirectory)
 
     elif (analysisAction == 'fillsnptable'):
         print('Ben has not implemented this functionality yet.')
@@ -276,12 +286,15 @@ if __name__=='__main__':
         # TODO: Sanity Checks on required inputs
         parseImgtHla(inputFile, outputDirectory)
 
-    else:
+    elif (analysisAction is None or analysisAction == ''):
         # Start the main GUI, so we can do some analysis steps.
-        # Honestly this GUI is a PITA, and doesn't provide much.
+        # Honestly this GUI is a PITA, and doesn't provide much. TODO: Delete the GUI.
         root = Tk()
         app = NanoporeProspectorMasterFrame(root)
         root.mainloop()
+
+    else:
+        raise Exception('Unknown analysis action:' + str(analysisAction))
 
     print('Done.  Yay.')
     

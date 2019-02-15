@@ -16,10 +16,9 @@
 from os import listdir
 from os.path import join, isdir, isfile
 
-from numpy import mean, amin, amax
+from numpy import mean
 
-from .minion_read_collection import minionReadCollection, createCollectionFromReadFile
-#, #createScatterPlot, createOutputFile, printSimpleReadStats
+from .minion_read_collection import MinionReadCollection, createCollectionFromReadFile, writeReadStats
 from .barcode_demultiplexer import splitByBarcode
 from nanopore_prospector.common import getReadFileType
 
@@ -45,14 +44,23 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
         print ('Read input is a file that exists.')
         allReads = createCollectionFromReadFile(inputReads)
     elif (isdir(inputReads)):
+        # Loop through input files and concatenate them.
         print ('Read input is a directory that exists.')
-        allReads = minionReadCollection([])
+        allReads = MinionReadCollection([])
         for currentInputReadFile in listdir(inputReads):
 
             allReads.readInputFormat = getReadFileType(currentInputReadFile)
 
             print ('loading Reads from:' + str(join(inputReads,currentInputReadFile)))
             newReads = createCollectionFromReadFile(join(inputReads,currentInputReadFile))
+
+            # temp debug stuff...for some reason phred qualities are missing.
+            print('Read Format: ' + allReads.readInputFormat   )
+            print ('Allreads has ' + str(len(allReads.readCollection)))
+            print ('newreads has ' + str(len(newReads.readCollection)))
+            print('allreads avgphred= ' + str(len(allReads.readAvgReportedPhredQualities)))
+            print('newreads avgphred= ' + str(len(newReads.readAvgReportedPhredQualities)))
+
             allReads.concatenate(newReads)
             
     else :
@@ -95,9 +103,9 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
         else:
             passReads.append(currentRead)
            
-    passReadCollection=minionReadCollection(passReads)
-    lengthRejectReadCollection=minionReadCollection(lengthRejectReads)
-    qualityRejectReadCollection=minionReadCollection(qualityRejectReads)
+    passReadCollection=MinionReadCollection(passReads)
+    lengthRejectReadCollection=MinionReadCollection(lengthRejectReads)
+    qualityRejectReadCollection=MinionReadCollection(qualityRejectReads)
     
     # TODO I shouldn't have to assign this. But an array of reads does not know what format they used to be in
     # So, i can't detect read type in minion_read_collection, that's dumb, im sure i can think of a better solution.
@@ -108,6 +116,10 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
     # readStats is a dictionary.
     # a read stats is a tuple, with 2 arrays.
     # readstats is a 2d array, with lengths and qualities.
+    # TODO: I think this information is included in MinIONReadCollection object, I  think i can remove this and just
+    # TODO: use the information inside the object.
+    # Well....not so sure because this is keeping track of all our sets of reads, even rejected ones.
+    # A good idea: TODO: make MinionReadCollection keep track of reads that are rejected for Length, and Quality.
     readStats = {}
 
 
@@ -140,40 +152,19 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
             for key in barcodeReadStats.keys():
                 readStats[key] = barcodeReadStats[key]
 
-    writeReadStats(readStats, outputDirectory)
+
+    # TODO: I don't really want to pass in these stats like this. MinionReadCollection should keep track of pass/fail reads, so it's not necessary.
+    alignedReadCount = allReads.totalAlignedReadCount
+    meanAlignedReadLength = mean(allReads.alignedReadLengths)
+    meanCalculatedQuality = mean(allReads.alignedReadQualityScores)
+    writeReadStats(readStats, outputDirectory, alignedReadCount, meanAlignedReadLength, meanCalculatedQuality)
 
 
     return readStats
 
-def writeReadStats(readStats, outputDirectory):
-    outputFileName = join(outputDirectory,'Read_Summary.txt')
-    outputFile = createOutputFile(outputFileName)
-      
-    for key in readStats.keys():
-        outputFile.write(writeReadStatsSub(key, readStats[key]))        
-    outputFile.close()
-     
-    
-def writeReadStatsSub(readType, readStats):    
-    statsSubText=''        
-    
-    if(len(readStats) > 0):
-        readLengths = readStats[0]
-        readQualities = readStats[1]
-        
-        statsSubText += (readType + '\n' 
-            + 'Sequences Analyzed :' + str(len(readLengths)) + '\n'
-            + 'Minimum Length     :' + str(int(amin(readLengths))) + '\n'
-            + 'Maximum Length     :' + str(int(amax(readLengths))) + '\n'
-            + 'Mean Length        :' + str(mean(readLengths)) + '\n'
-            + 'Mean Quality       :' + str(mean(readQualities)) + '\n\n'
-        )
-        
-    else:
-        statsSubText += (readType + '\n' 
-            + 'Sequences Analyzed :0\n\n'
 
-        )
 
-    return statsSubText
+
+
+
 

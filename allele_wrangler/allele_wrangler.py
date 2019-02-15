@@ -26,9 +26,9 @@ from Bio.Alphabet import IUPAC
 from Bio.AlignIO import read
 from Bio.Align import AlignInfo
 from Bio.Align.Applications import ClustalOmegaCommandline
-from Bio.Sequencing.Applications import BwaIndexCommandline
+# from Bio.Sequencing.Applications import BwaIndexCommandline
 
-from random import shuffle
+#from random import shuffle
 
 from sklearn.cluster import KMeans
 from numpy import asarray
@@ -39,7 +39,7 @@ from pysam import AlignmentFile
 
 from .alignment_info import AlignmentInfo, AlignmentColumn
 
-from nit_picker.read_quality_analyzer import calculateTotalCoverage
+#from nit_picker.read_quality_analyzer import calculateTotalCoverage
 
 
 class AlleleWrangler():   
@@ -547,7 +547,10 @@ class AlleleWrangler():
             print (exc_info()[1])
             print (exc_info()[2])        
             raise 
-        
+
+    """
+moving this method to nanopore_prospector.common.py
+TODO: Delete this. 
     
     def alignReads(self, referenceLocation, readFileLocation, alignmentOutputDirectory, useReadSubset):
         # Perform BW Alignment.  Align all reads against the Reference.
@@ -663,7 +666,7 @@ class AlleleWrangler():
         alignedReadCount = calculateTotalCoverage(alignmentOutputName)
         return alignedReadCount
 
-
+    """
 
 
 

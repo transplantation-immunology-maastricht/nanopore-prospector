@@ -15,12 +15,9 @@
 
 
 import sys
-import os
 
-from .minion_read_collection import minionReadCollection
+from .minion_read_collection import MinionReadCollection
 from Bio.Seq import Seq
-#from Bio.SeqIO import write
-#from os.path import join
 
 # Read Barcodes from an input file
 def readBarcodes(barcodeFileNameWithPath):
@@ -55,14 +52,14 @@ def splitByBarcode(currentReadCollection, outputDirectory, barcodeFileNameWithPa
     for key in barcodeList.keys():
         #allReadFileName = join(outputDirectory, key + '_pass_reads.fastq')
         #allReadFileOutputs[key] = open(allReadFileName, 'w')
-        allBarcodeCollections[key] = minionReadCollection([])
+        allBarcodeCollections[key] = MinionReadCollection([])
         
         # TODO: This is completely hardcoded. I need to assign the read format to the minion_read_collection.
         # I should look this up based on the input data, i think i have a common method for finding file type.
         allBarcodeCollections[key].readInputFormat = 'fastq'
         
     #unbarcodedOutput = open(join(outputDirectory, 'unbarcoded_pass_reads.fastq'), 'w')
-    unbarcodedReadCollection = minionReadCollection([])
+    unbarcodedReadCollection = MinionReadCollection([])
     
     # TODO: This is completely hardcoded. I need to assign the read format to the minion_read_collection.
     # I should look this up based on the input data, i think i have a common method for finding file type.

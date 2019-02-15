@@ -19,7 +19,7 @@ import sys
 from pylab import clf, scatter, xlabel, ylabel, title, savefig
 
 from os.path import split, isdir, isfile, join, expanduser, abspath, exists, splitext
-from os import makedirs
+from os import makedirs, system
 
 from xml.etree import ElementTree as ET
 from xml.dom import minidom as MD
@@ -27,6 +27,133 @@ from xml.dom import minidom as MD
 from Bio.SeqIO import parse as parseRecords, write as writeRecords
 
 from datetime import datetime
+
+from pysam import AlignmentFile
+
+
+def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, useReadSubset, numberThreads, excludeShortAlignments):
+    # TODO: Consume the number of threads, pretty sure I can pass this into minimap2.
+    # TODO: Maybe use #threads+1 because minimap2 always uses one thread for IO during alignment. Double check that.
+
+    # TODO: Pass in a boolean for whether or not to exclude short alignments. Short alignments are problematic.
+    # TODO: They align because (i think) of false homology within the gene. It looks like a hump of coverage with lots of false SNPs.
+    # TODO: The solution is in the -m parameter in minimap2. This is a minimum length for smaller aligned chains.
+    # TODO: -m 3000 worked for a reference length of about 5600, so maybe 1/2 reference length is a good guess.
+
+    # perform minimap alignment to align reads against a reference.
+    # This method returns the # of reads that aligned to this reference.
+    print('\nAligning reads against the reference:' + str(referenceLocation) + ' & ' + str(readFileLocation))
+
+    if not isdir(alignmentOutputDirectory):
+        makedirs(alignmentOutputDirectory)
+
+    # Part 1 Index the Reference
+    try:
+        # Copy the reference sequence to the alignment directory. This is a complicated way to do it.
+        newReferenceLocation = join(alignmentOutputDirectory, 'AlignmentReference.fasta')
+        refSequence = list(parseRecords(referenceLocation, 'fasta'))[0]
+        refSequence.id = 'AlignmentReference'
+        sequenceWriter = createOutputFile(newReferenceLocation)
+        writeRecords([refSequence], sequenceWriter, 'fasta')
+        sequenceWriter.close()
+
+        # Index The Reference
+        referenceIndexName = newReferenceLocation.replace('.fasta', '.mmi')
+        cmd = ('minimap2 -d ' + referenceIndexName + ' ' + newReferenceLocation)
+        system(cmd)
+
+    except Exception:
+        print ('Exception indexing alignment reference. Is bwa installed? folder writing permission issue?')
+        raise
+
+    # TODO: Make this a commandline parameter.  Lower = faster. Higher = more accurate consensus correction
+    alignmentReadSubsetCount = 150
+    try:
+        if useReadSubset:
+            # load Reads
+            parsedReads = list(parse(readFileLocation, self.readInputFormat))
+
+            # If there aren't enough reads for this
+            if (len(parsedReads) < alignmentReadSubsetCount):
+                alignmentReadSubsetCount = len(parsedReads)
+
+            # choose random subset
+            randomIndexes = list(range(0, len(parsedReads)))
+            shuffle(randomIndexes)
+            sampledReads = []
+            for i in range(0, alignmentReadSubsetCount):
+                sampledReads.append(parsedReads[randomIndexes[i]])
+
+            # write random reads to alignment directory
+            # Reassign the reads we'll use downstream
+            readFileLocation = join(alignmentOutputDirectory, 'ReadSample.fasta')
+            readSampleWriter = createOutputFile(readFileLocation)
+
+            writeRecords(sampledReads, readSampleWriter, 'fasta')
+            readSampleWriter.close()
+
+        else:
+            # We'll use the whole read file.
+            pass
+
+    except Exception:
+        print ('Exception selecting a read subset.')
+        raise
+
+    # Part 2 Align
+    try:
+        alignmentOutputName = join(alignmentOutputDirectory, 'alignment.bam')
+
+
+        # Parameters depend on "read type"
+        # if i have a fastq, i assume these are minion reads.
+        # if i have a fasta, i assume these are consensus sequences.
+        if (getReadFileType(readFileLocation) == 'fasta'):
+            minimapParams = '-ax asm5'
+        elif (getReadFileType(readFileLocation) == 'fastq'):
+            print ('attempting the consensus parameters instead of ONT settings.')
+            minimapParams = '-ax map-ont'
+        else:
+            raise Exception('Unknown read file type....')
+
+        if(excludeShortAlignments):
+            # TODO: I'm using -m as a parameter for minimum bases for aligned reads. Maybe 1/3 length of the reference is a good default value
+            # TODO: I should set the file type based on a parameter.
+            minimumReadValue = int(round(len(refSequence.seq) / 2))
+            minimapParams += ' -m ' + str(minimumReadValue)
+        else:
+            pass
+
+        cmd = ("minimap2 " + minimapParams + " " +
+               referenceIndexName + " " +
+               readFileLocation +
+               " | samtools view -b | samtools sort -o "
+               + alignmentOutputName)
+        # print ('alignment command:\n' + cmd)
+        system(cmd)
+
+    except Exception:
+        print ('Exception aligning reads against reference. Are minimap2 and samtools installed?')
+        raise
+
+        # Part 3 Index Alignment
+    try:
+        cmd = ("samtools index " + alignmentOutputName)
+        # print ('alignment index command:\n' + cmd)
+        system(cmd)
+        # print ('index command:\n' + cmd)
+    except Exception:
+        print ('Exception indexing alignment reference. Is bwa installed?')
+        raise
+
+    alignedReadCount = calculateTotalCoverage(alignmentOutputName)
+    return alignedReadCount
+
+def calculateTotalCoverage(alignmentOutputName):
+    # The number of reads that are involved in this alignment
+    bamfile = AlignmentFile(alignmentOutputName, 'rb')
+    alignedReads = list(bamfile.fetch())
+    return len(alignedReads)
 
 def getReadFileType(fileNameFull):
     # This method is for deciding if a file is fasta or fastq.
