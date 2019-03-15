@@ -606,6 +606,78 @@ def createFeatureReferences(alleleFullList, outputDirectory):
 
             printFasta(alleleGroup.Alleles, outputGroupFileName, False, False, False)
 
+
+def createAllelesSplitByFeatureReference(alleleFullList, outputDirectory):
+    # I'm currently modifying this method to put every feature I know of in a single file.
+    # Sorted first by allele name, then by feature.
+
+    input("Breakpoint for creating alleles split by reference sequence")
+
+    featuresList = ['5\' UTR',
+        'Exon 1', 'Intron 1', 'Exon 2', 'Intron 2', 'Exon 3', 'Intron 3', 'Exon 4', 'Intron 4', 'Exon 5', 'Intron 5', 'Exon 6', 'Intron 6', 'Exon 7', 'Exon 8','Intron 7'
+        , '3\' UTR'
+        ]
+
+    outputFeatureFileName = join(outputDirectory, 'HLA_FeaturesByAllele.fasta')
+    featuresByAllele = []
+
+    for allele in alleleFullList:
+        for featureName in featuresList:
+            shortFeatureName = str(featureName.replace('Simulated ', 'SIM-').replace('\' ', '')
+                .replace('Intron ', 'IN').replace('Exon ','EX').replace(' ', '_'))
+
+            if (featureName in allele.featuresInFullSequence):
+                currentFeatureAllele = allele.copy()
+                currentFeatureAllele.sequence = allele.featuresInFullSequence[featureName]
+                # Update the features that are in this sequence
+                currentFeatureAllele.featuresInFullSequence = {}
+                currentFeatureAllele.featuresInFullSequence[featureName] = allele.featuresInFullSequence[featureName]
+                featuresByAllele.append(currentFeatureAllele)
+
+            #print('')
+
+    printFasta(featuresByAllele, outputFeatureFileName, False, False, False)
+
+    input("Breakpoint After creating alleles split by reference sequence")
+
+
+
+    """
+    for featureName in featuresList:
+
+
+        featureAlleles = []
+        featureReferenceOutputDirectory = join(outputDirectory, shortFeatureName + '_sequences')
+
+        print ('Creating a ' + featureName + ' Reference:' + join(featureReferenceOutputDirectory,
+                                                                  'HLA_' + shortFeatureName + '.fasta'))
+
+        for allele in alleleFullList:
+            if (featureName in allele.featuresInFullSequence):
+                currentFeatureAllele = allele.copy()
+                currentFeatureAllele.sequence = allele.featuresInFullSequence[featureName]
+                # Update the features that are in this sequence
+                currentFeatureAllele.featuresInFullSequence = {}
+                currentFeatureAllele.featuresInFullSequence[featureName] = allele.featuresInFullSequence[featureName]
+                featureAlleles.append(currentFeatureAllele)
+
+        outputFeatureFileName = join(featureReferenceOutputDirectory, 'HLA_' + shortFeatureName + '.fasta')
+        printFasta(featureAlleles, outputFeatureFileName, False, False, False)
+
+        # Print outputfiles and info for each allele group.
+        print ('Generating output files for each HLA Allele Group')
+        alleleGroups = getAlleleGroups(featureAlleles)
+        alleleGenes = getAlleleGenes(featureAlleles)
+        combinedAlleleGroups = alleleGroups + alleleGenes
+        for index, alleleGroup in enumerate(combinedAlleleGroups):
+            print('(' + str(index + 1) + '/' + str(len(combinedAlleleGroups)) + '): ' + alleleGroup.FileName)
+
+            outputGroupFileName = join(featureReferenceOutputDirectory, alleleGroup.FileName)
+
+            printFasta(alleleGroup.Alleles, outputGroupFileName, False, False, False)
+
+    """
+
 # This was formarly a main method, no longer because it is a part of prospector now.
 #if __name__=='__main__':
 def parseImgtHla(inputFileName, outputDirectory):
@@ -628,6 +700,8 @@ def parseImgtHla(inputFileName, outputDirectory):
         # This shoudl overlap with the generateIntron2Consensus method, so I think I'll need to trim that method 
         # so as not to redo efforts. 
         createFeatureReferences(alleleList, outputDirectory)
+
+        createAllelesSplitByFeatureReference(alleleList, outputDirectory)
         
         createBlastReferences(alleleList, outputDirectory)
         

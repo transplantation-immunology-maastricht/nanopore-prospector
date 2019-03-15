@@ -52,54 +52,56 @@ class MinionReadCollection:
     # If we have a reference sequence than we can calculate all sorts of quality statistics.
     def setReferenceSequence(self, referenceSequence):
         self.referenceSequence = referenceSequence
-        self.referenceLength = len(referenceSequence)
 
-        # Storing the new consensus as a list of characters. So i can modify it.
-        # self.newConsensus = list(referenceSequence)
-        self.newConsensus = referenceSequence
+        if(self.referenceSequence is not None):
+            self.referenceLength = len(referenceSequence)
 
-        self.alignedReadCountsByPosition = [0] * self.referenceLength
-        # For this application, I assume that a read will always be a match, mismatch,insertion, or deletion. Never both. An indel is not a match.
-        self.matchReadCountsByPosition = [0] * self.referenceLength
-        self.insertionReadCountsByPosition = [0] * self.referenceLength
-        self.deletionReadCountsByPosition = [0] * self.referenceLength
-        self.mismatchReadCountsByPosition = [0] * self.referenceLength
-        self.homopolymerSizesByPosition = [0] * self.referenceLength
-        self.segmentCountByPosition = [0] * self.referenceLength
-        self.supplementaryReadCountsByPosition = [0] * self.referenceLength
-        self.snpCallsByPosition = [None] * self.referenceLength
+            # Storing the new consensus as a list of characters. So i can modify it.
+            # self.newConsensus = list(referenceSequence)
+            self.newConsensus = referenceSequence
 
-        self.ACountsByPosition = [0] * self.referenceLength
-        self.GCountsByPosition = [0] * self.referenceLength
-        self.CCountsByPosition = [0] * self.referenceLength
-        self.TCountsByPosition = [0] * self.referenceLength
+            self.alignedReadCountsByPosition = [0] * self.referenceLength
+            # For this application, I assume that a read will always be a match, mismatch,insertion, or deletion. Never both. An indel is not a match.
+            self.matchReadCountsByPosition = [0] * self.referenceLength
+            self.insertionReadCountsByPosition = [0] * self.referenceLength
+            self.deletionReadCountsByPosition = [0] * self.referenceLength
+            self.mismatchReadCountsByPosition = [0] * self.referenceLength
+            self.homopolymerSizesByPosition = [0] * self.referenceLength
+            self.segmentCountByPosition = [0] * self.referenceLength
+            self.supplementaryReadCountsByPosition = [0] * self.referenceLength
+            self.snpCallsByPosition = [None] * self.referenceLength
 
-        # I want to keep track of what alleles / reads have what polymorphisms.
-        # This is a dictionary.
-        # Key = allele id.
-        # Value = a dictionary.
-            # key = position, from the alignment reference
-            # value = alternate base(s) from reference.
-            # only have a key/value pair if there is a deviation from reference.
-        self.alleleSpecificPolymorphisms = {}
+            self.ACountsByPosition = [0] * self.referenceLength
+            self.GCountsByPosition = [0] * self.referenceLength
+            self.CCountsByPosition = [0] * self.referenceLength
+            self.TCountsByPosition = [0] * self.referenceLength
 
-        # Keep track of match percent for each allele/read. This is storage for OBSERVED read qualities, not reported in the reads.
-        # Should only have entries for the reads that mapped to the reference.
-        # This is a dictionary.
-        # Key = allele/read id.
-        # matchPercent.
-        self.readMatchPercentages = {}
+            # I want to keep track of what alleles / reads have what polymorphisms.
+            # This is a dictionary.
+            # Key = allele id.
+            # Value = a dictionary.
+                # key = position, from the alignment reference
+                # value = alternate base(s) from reference.
+                # only have a key/value pair if there is a deviation from reference.
+            self.alleleSpecificPolymorphisms = {}
 
-        # TODO: I don't really need to track this right?? I have a list of reads. Commenting out to see what breaks.
-        # self.totalReadCount = 0
-        self.totalAlignedReadCount = 0
-        self.alignedReadLengths = []
-        self.alignedReadPhredScores = []
-        self.alignedReadQualityScores = []
+            # Keep track of match percent for each allele/read. This is storage for OBSERVED read qualities, not reported in the reads.
+            # Should only have entries for the reads that mapped to the reference.
+            # This is a dictionary.
+            # Key = allele/read id.
+            # matchPercent.
+            self.readMatchPercentages = {}
 
-        # Store a big pile of homopolymer data.
-        # (Reference Pos, Reference Base, Reference Homopolymer Length, Read Homopolymer Length)
-        self.homopolymerTuples = []
+            self.totalAlignedReadCount = 0
+            self.alignedReadLengths = []
+            self.alignedReadPhredScores = []
+            self.alignedReadQualityScores = []
+
+            # Store a big pile of homopolymer data.
+            # (Reference Pos, Reference Base, Reference Homopolymer Length, Read Homopolymer Length)
+            self.homopolymerTuples = []
+        else:
+            print('No reference sequence provided.')
 
 
     def summarizeSimpleReadStats(self):
@@ -122,8 +124,8 @@ class MinionReadCollection:
         self.readAvgReportedPhredQualities = self.readAvgReportedPhredQualities + otherCollection.readAvgReportedPhredQualities
         # self.summarizeSimpleReadStats()
 
-    # TODO: Can i remove referenceSequenceLocation and use the "self" value?
-    def outputReadPlotsAndSimpleStats(self, outputDirectory, plotName, sampleID, referenceSequenceLocation):
+    # TODO: Can i remove referenceSequenceLocation and use the "self" value? Probably.
+    def outputReadPlotsAndSimpleStats(self, outputDirectory, plotName, sampleID, referenceSequenceLocation, calculateReadStatistics):
         self.summarizeSimpleReadStats()
 
         # Remove spaces for file names.
@@ -158,8 +160,8 @@ class MinionReadCollection:
         # TODO: I really only need to calculate these statistics against the pass reads.
         # Can i filter that somehow?
 
-        # Calculate Statistics against Reference
-        if (referenceSequenceLocation is not None):
+        # Calculate Statistics against Reference. This may crash if there is no reference sequence.
+        if (calculateReadStatistics):
 
 
             # TODO: Calculate number of threads somewhere. I should pass it into nit_picker.
@@ -380,8 +382,11 @@ class MinionReadCollection:
         for referencePositionZeroBased in range(0, self.referenceLength):
             # print('checking position' + str(referencePositionZeroBased))
             # Y = Percent Match
-            yValues[referencePositionZeroBased] = 100 * self.matchReadCountsByPosition[referencePositionZeroBased] / \
-                                                  self.segmentCountByPosition[referencePositionZeroBased]
+            if(self.segmentCountByPosition[referencePositionZeroBased] != 0):
+                yValues[referencePositionZeroBased] = 100 * self.matchReadCountsByPosition[referencePositionZeroBased] / \
+                    self.segmentCountByPosition[referencePositionZeroBased]
+            else:
+                yValues[referencePositionZeroBased] = 0
             # X = 0-based reference position.
             xValues[referencePositionZeroBased] = referencePositionZeroBased
 
@@ -424,7 +429,10 @@ class MinionReadCollection:
                         # currentValueCount += 1
 
                 # Y = Percent Match
-                yValues.append(100 * currentMatchCount / currentAlignedSectionCount)
+                if(currentAlignedSectionCount == 0):
+                    yValues.append(0)
+                else:
+                    yValues.append(100 * currentMatchCount / currentAlignedSectionCount)
                 # X = 0-based reference position.
                 xValues.append(referencePositionZeroBased)
 
@@ -600,6 +608,18 @@ class MinionReadCollection:
             # matchPercent = self.matchReadCountsByPosition[referencePositionZeroBased] / alignedReads
             matchPercent = self.matchReadCountsByPosition[referencePositionZeroBased] / segmentCount
 
+        #print('Reference0based: ' + str(referencePositionZeroBased))
+        #print('Debug Segment Count: ' + str(segmentCount))
+
+        if(segmentCount == 0):
+            insertionPercent = 0
+            deletionPercent = 0
+            mismatchPercent = 0
+        else:
+            insertionPercent = self.insertionReadCountsByPosition[referencePositionZeroBased] / segmentCount
+            deletionPercent = self.deletionReadCountsByPosition[referencePositionZeroBased] / segmentCount
+            mismatchPercent = self.mismatchReadCountsByPosition[referencePositionZeroBased] / segmentCount
+
         outputFile.write(
             str(referencePositionZeroBased + 1) +
             ',' + str(referenceBase) +
@@ -616,11 +636,11 @@ class MinionReadCollection:
             ',' + str(self.matchReadCountsByPosition[referencePositionZeroBased]) +
             ',' + str(matchPercent) +
             ',' + str(self.insertionReadCountsByPosition[referencePositionZeroBased]) +
-            ',' + str(self.insertionReadCountsByPosition[referencePositionZeroBased] / segmentCount) +
+            ',' + str(insertionPercent) +
             ',' + str(self.deletionReadCountsByPosition[referencePositionZeroBased]) +
-            ',' + str(self.deletionReadCountsByPosition[referencePositionZeroBased] / segmentCount) +
+            ',' + str(deletionPercent) +
             ',' + str(self.mismatchReadCountsByPosition[referencePositionZeroBased]) +
-            ',' + str(self.mismatchReadCountsByPosition[referencePositionZeroBased] / segmentCount) +
+            ',' + str(mismatchPercent) +
             ',' + str(self.homopolymerSizesByPosition[referencePositionZeroBased]) +
             '\n'
         )
