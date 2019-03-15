@@ -45,6 +45,7 @@ def readArgs():
     global maximumQuality
     global sampleID
     global barcodeFileLocation
+    global snps
     
     readInput                = None
     referenceInput           = None
@@ -58,6 +59,7 @@ def readArgs():
     maximumQuality           = None  
     sampleID                 = None
     barcodeFileLocation      = None
+    snps                     = None
 
     if(len(argv) < 3):
         print ('I don\'t think you have enough arguments.\n')
@@ -68,9 +70,9 @@ def readArgs():
     # https://www.tutorialspoint.com/python/python_command_line_arguments.htm
     try:
         opts, args = getopt(argv[1:]
-            ,"m:M:q:Q:hvb:I:i:o:O:r:R:t:a:s:"
+            ,"m:M:q:Q:hvb:I:i:o:O:r:R:t:a:s:S:"
             ,["minlen=", "maxlen=", "minqual=", "maxqual=", "help", "version","barcode=", "iterations=", "inputfile="
-                ,"outputdirectory=","outputfile=","reads=","reference=",'threads=','action=', 'sampleid='])
+                ,"outputdirectory=","outputfile=","reads=","reference=",'threads=','action=', 'sampleid=', 'snps='])
 
         print (str(len(opts)) + ' arguments found.')
 
@@ -124,6 +126,20 @@ def readArgs():
 
             elif opt in ("-s", "--sampleid"):
                 sampleID = arg
+
+            elif opt in ("-S", "--snps"):
+                # A list of polymorphic positions for analysis. Used mainly (only?) in the heterozygous split.
+                # It should be a list of 1-based SNP positions matching the reference sequence, separated by commas, like this:
+                # 134, 664, 1233, 1445
+                # I choose 1-based because IGV shows 1-based positions.
+                # 134,664,1233,1445
+                # convert from 1 to 0-based and store as a list.
+                snps = str(arg).split(',')
+                for index, snp in enumerate(snps):
+                    snps[index] = int(snps[index]) - 1
+
+
+                #snps = arg
 
             else:
                 print('Unknown Commandline Option:' + str(opt) + ':' + str(arg))
@@ -194,7 +210,9 @@ if __name__=='__main__':
         # I will pass "None" as the reference sequence here because
         # I don't need complicated read statistics in this case.
         # TODO: add an "analysis action" for just preparing reads. Programming is fun.
-        prepareReads(readInput, preparedReadsFolder, sampleID, barcodeFileLocation, None, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality )
+        # TODO: I just switched the reference input from None to referenceInput. This changes...that we will actually calculate read stats during htis step. Probably not an issue but it will be slower.
+        # TODO: to fix this, i should refactor this prepareReads method. Somehow pass in yes or no on calculate read stats.
+        prepareReads(readInput, preparedReadsFolder, sampleID, barcodeFileLocation, referenceInput, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, False )
 
         # If we used length/quality filters, the data is in the "Pass" reads.
         if isfile(join(preparedReadsFolder, 'minion_reads_Pass.fastq')):
@@ -214,8 +232,10 @@ if __name__=='__main__':
 
         # Call the hetero split method.
         # I guess i need an allele wrangler object
+        # TODO: Can I supply a list of polymorphic positions? Yeah pass it in.
+
         myAlleleWrangler = AlleleWrangler(preparedReadsFileName, splitReadsFolder, referenceInput, 0,
-                                          numberThreads, splitHeterozygotes)
+                                          numberThreads, splitHeterozygotes, snps)
 
         currentAssemblyResults = myAlleleWrangler.analyzeReads()
 

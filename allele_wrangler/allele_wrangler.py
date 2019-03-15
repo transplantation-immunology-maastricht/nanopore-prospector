@@ -40,11 +40,12 @@ from pysam import AlignmentFile
 from .alignment_info import AlignmentInfo, AlignmentColumn
 
 #from nit_picker.read_quality_analyzer import calculateTotalCoverage
+from nanopore_prospector.common import alignReads
 
 
 class AlleleWrangler():   
     
-    def __init__(self, readsFile, outputDir, referenceFile, numIters, numThreads, splitHeterozygotes):
+    def __init__(self, readsFile, outputDir, referenceFile, numIters, numThreads, splitHeterozygotes, snps ):
          
         print ('Setting up the Allele Wrangler...')
         self.readInput          = readsFile
@@ -54,6 +55,7 @@ class AlleleWrangler():
         self.totalIterations      = numIters
         self.numberThreads         = numThreads
         self.splitHeterozygotes = splitHeterozygotes
+        self.snps = snps
         
         # Determine if input is a file, or a directory
         if (isfile(self.readInput)):
@@ -127,16 +129,15 @@ class AlleleWrangler():
         return coverageResults
 
     def summarizeAnalysis(self, finalConsensusSequence):
-        # TODO: I shouldnt need to pass in the splitHeterozygotes, since it is a class variable.
-        print('\n\nSummarizing Analysis Results.') 
+        print('\n\nSummarizing Analysis Results.')
 
         try:
             coverageResults = {}
             if(self.splitHeterozygotes):
-                # TODO: Im passing in a lot of self variables here. I should be able to remove those.
-                
-                self.heterozygousDirectory = join(self.outputRootDirectory, 'HeterozygousAlignment')                        
-                heterozygousAlignedReadCount = self.alignReads(finalConsensusSequence,self.readInput,self.heterozygousDirectory, False)
+
+                self.heterozygousDirectory = join(self.outputRootDirectory, 'HeterozygousAlignment')
+                #alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, useReadSubset, numberThreads, excludeShortAlignments):
+                heterozygousAlignedReadCount = alignReads(finalConsensusSequence,self.readInput,self.heterozygousDirectory, False, self.numberThreads, True)
                 
                 # Find heterozygous positions
                 coverageResults = self.phaseHeterozygousReads()
@@ -145,7 +146,7 @@ class AlleleWrangler():
                 # write consensus to file. 
                 # copy alignment reference and call it "final" 
                 self.finalAlignmentDirectory = join(self.outputRootDirectory, 'FinalAlignment')                        
-                alignedReadCount = self.alignReads(finalConsensusSequence,self.readInput,self.finalAlignmentDirectory, False)
+                alignedReadCount = alignReads(finalConsensusSequence,self.readInput,self.finalAlignmentDirectory, False, self.numberThreads, True)
                 
                 finalConsensusFilename = join(self.outputRootDirectory, 'AssembledConsensus.fasta')
                 finalConsensusSequence = list(parse(finalConsensusSequence, 'fasta'))[0]
@@ -198,157 +199,175 @@ class AlleleWrangler():
         readIDs.sort()
 
         # Heterozygous base list
-        heterozygousBasesSummaryFile = createOutputFile(join(heterozygousConsensusDirectory,'HeterozygousBases.txt'))         
-        heterozygousBasesSummaryFile.write('List of Heterozygous Bases:\n')
-
-        # get list of Heterozygous Positions
-        # TODO: I suppose I don't need to align 100% of reads to determine heterozygosity.
-        # Maybe this would speed up if i use a smaller alignment, or stop the loop after X reads
-        print('Getting a list of Heterozygous Positions:')
-        heterozygousPositions = []
-        pileupIterator = bamfile.pileup(alignmentRef.id)
-        for pileupColumn in pileupIterator:
-            readCount = 0
-            matchCount = 0
-            mismatchCount = 0
-            insCount = 0
-            delCount = 0
-
-            # dictionary of base counts.
+        heterozygousBasesSummaryFile = createOutputFile(join(heterozygousConsensusDirectory, 'HeterozygousBases.txt'))
+        heterozygousBasesSummaryFile.write('List of Heterozygous Bases (0-based):\n')
 
 
-            
-            referenceBase = alignmentRef.seq[pileupColumn.pos].upper()
-            
-            # Iterate the Reads at this position. Each read at each position is either:
-            # ins, Del, match, mismatch.
+        if (self.snps is not None and len(self.snps) > 0):
+            # A string of SNPs was passed in, I don't need to calculate them myself.
+            for snp in self.snps:
+                heterozygousBasesSummaryFile.write(str(snp) + '\n')
 
-            #TODO: is it possible to exclude secondary/supplemetnary in the pileups method?  No.
-            for pileupRead in pileupColumn.pileups:
+        else:
 
-                #TODO: Important. Filter secondary / supplementary reads. This is causing problems, these secondary reads are FULL of snps.
-                # Difficulty: these parameters are on an aligned segment.
+            # get list of Heterozygous Positions
+            # TODO: I suppose I don't need to align 100% of reads to determine heterozygosity.
+            # Maybe this would speed up if i use a smaller alignment, or stop the loop after X reads
+            print('Getting a list of Heterozygous Positions:')
+            self.snps = []
+            pileupIterator = bamfile.pileup(alignmentRef.id)
+            for pileupColumn in pileupIterator:
+                readCount = 0
+                matchCount = 0
+                mismatchCount = 0
+                insCount = 0
+                delCount = 0
 
-                alignedSegmentObject = pileupRead.alignment
+                # dictionary of base counts.
 
-                if(False):
+
+
+                referenceBase = alignmentRef.seq[pileupColumn.pos].upper()
+
+                # Iterate the Reads at this position. Each read at each position is either:
+                # ins, Del, match, mismatch.
+
+                #TODO: is it possible to exclude secondary/supplemetnary in the pileups method?  No.
+                for pileupRead in pileupColumn.pileups:
+
+                    #TODO: Important. Filter secondary / supplementary reads. This is causing problems, these secondary reads are FULL of snps.
+                    # Difficulty: these parameters are on an aligned segment.
+
+                    alignedSegmentObject = pileupRead.alignment
+
+                    if(False):
+                        pass
+                    elif(alignedSegmentObject.is_secondary):
+                        #print ('Secondary read at Position ' + str(pileupColumn.pos))
+                        pass
+                    elif(alignedSegmentObject.is_supplementary):
+                        #print ('Supplementary read at Position ' + str(pileupColumn.pos))
+                        pass
+
+
+                    # Just trying some things, not sure what these mean.
+                    #elif (alignedSegmentObject.is_unmapped):
+                    #    print('UNMAPPED READ!!!!!!!!!!!!!!!!!!! what does that mean?')
+                    #elif (alignedSegmentObject.is_qcfail):
+                    #    print('This read was a QC failure. What does that mean?????????????')
+
+                    else:
+                        readCount += 1
+                        # indels
+                        if(pileupRead.is_del == 1):
+                            delCount += 1
+                        elif(pileupRead.indel > 0):
+                            insCount += 1
+                        else:
+                            currentBase = pileupRead.alignment.query_sequence[pileupRead.query_position].upper()
+
+                            if(currentBase == referenceBase):
+                                matchCount += 1
+                            else:
+                                mismatchCount += 1
+
+
+                    # This is a cheap way to stop analysis early. I will only analyze the first 250 reads.
+                    # Potential problem: are these reads sorted somehow? Maybe my numbers are biased by only looking at the
+                    # first reads
+                    # Todo: This is another parameter that can be tuned. Add to inputs? Maybe.
+                    maxAnalyzedReadCounts = 1000
+
+                    if(readCount > maxAnalyzedReadCounts):
+                        break
+
+                matchProportion =      (1.0 * matchCount / readCount)
+                insertionProportion =  (1.0 * insCount / readCount)
+                deletionProportion =   (1.0 * delCount / readCount)
+                mismatchProportion =   (1.0 * mismatchCount / readCount)
+
+                #print ('Position ' + str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Match/Mismatch : ' + str(matchCount) + '/' + str(mismatchCount))
+                #print ('Match Percentage ' + str(matchProportion))
+
+                # TODO: Should accepted match proprtion be a commandline parameter?
+                # if > 75% of bases match, this is not a heterzygous position
+                baseCutoff = .70
+
+                if(matchProportion > baseCutoff or insertionProportion > baseCutoff or deletionProportion > baseCutoff):
                     pass
-                elif(alignedSegmentObject.is_secondary):
-                    #print ('Secondary read at Position ' + str(pileupColumn.pos))
-                    pass
-                elif(alignedSegmentObject.is_supplementary):
-                    #print ('Supplementary read at Position ' + str(pileupColumn.pos))
-                    pass
+                    #print ('Position ' + str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(insCount) + '/' + str(matchCount) + '/' + str(mismatchCount))
+                    #print ('This position does not look heterozygous.')
 
 
-                # Just trying some things, not sure what these mean.
-                #elif (alignedSegmentObject.is_unmapped):
-                #    print('UNMAPPED READ!!!!!!!!!!!!!!!!!!! what does that mean?')
-                #elif (alignedSegmentObject.is_qcfail):
-                #    print('This read was a QC failure. What does that mean?????????????')
+                # If coverage is very low, we should not use this position
+                # This logic is flawed, i think this is never working.
+                elif ((1.0 * pileupColumn.n / readCount) < .25):
+                    pass
+
+                elif (mismatchProportion > baseCutoff):
+                    pass
+
+                # These are the hardcoded values I used for the DRA analysis. Cheating.
+
+                # # I want to write a condition where we don't use the position if it's not clearly polymorphic.
+                # #elif (False):
+                # #    pass
+                # # If the mismatch proportion is too high, what happens? What if there are 2 different bases that are mismatched, like if both my alleles have a different snp from reference. I'll miss that right now.
+                #
+
+                # # TEMP, this is very temporary. This is specific to a reference.
+                # # TODO : Fix these hard coded values.
+                # TODO: I don't really need this code, this is to ignore regions of my DRA reference.
+                # Instead, I can pass in a list of 1-based polymorphic positions to sort based on those. A "whitelist" instead of a "blacklist"
+                # # In a perfect world....I could tell what positions are heterozygous, but I can't.
+
+
+
+                # # I can tell if this sequence is a homopolymer though, but looking at the bases around it.....But that's not the correct thing to do.
+                # # I can keep this logic but make it a parameter. Big deletion regions are hard to analyze so I'm just ignoring them for now.
+                # elif(5890 <= pileupColumn.pos <= 5970):
+                #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+                #     pass
+                # elif (6203 <= pileupColumn.pos <= 6212):
+                #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+                #     pass
+                # # Big String of A's
+                # elif (774 <= pileupColumn.pos <= 796):
+                #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+                #     pass
+                # #Known homopolymer positions....this is terrible programming.
+                # # I could at least pass these in ad ignored positions....
+                # elif (pileupColumn.pos in (403,430, 1479, 1510, 1683,
+                #         1991, 1996, 1997, 2003, 2009, 2093, 2100, 2133, 2134, 2191,
+                #         2262, 2289, 2294, 2342, 2449, 2450, 2524, 2647, 2663, 2732,
+                #         2895, 2902, 3113, 3114, 3180, 3197, 3362, 3396, 3453, 3542,
+                #         3551, 3665, 3832, 3903, 3953, 4108, 4109, 4400, 4639, 4698,
+                #         4703, 4769, 4785, 4786, 4828, 4878, 5084, 5301, 5302, 5449,
+                #         5575, 5597, 6155, 6279, 6280, 6314, 6375, 6376, 6712, 6755,
+                #         6790, 7084, 7631, 7718, 7769, 7971, 7978, 8132, 8133, 8134,
+                #         8314, 8315, 8352, 8476, 8477, 8478, 8642, 8650, 8651, 8652,
+                #         8653, 8654, 8655, 8656, 8657, 8698, 8725, 8753, 8759
+                #         )):
+                #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
+                #     pass
+
 
                 else:
-                    readCount += 1
-                    # indels
-                    if(pileupRead.is_del == 1):
-                        delCount += 1
-                    elif(pileupRead.indel > 0):
-                        insCount += 1
-                    else:
-                        currentBase = pileupRead.alignment.query_sequence[pileupRead.query_position].upper()
-
-                        if(currentBase == referenceBase):
-                            matchCount += 1
-                        else:
-                            mismatchCount += 1
+                    #heterozygousBasesSummaryFile.write (str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(insCount) + '/' + str(matchCount) + '/' + str(mismatchCount) + '\n')
+                    heterozygousBasesSummaryFile.write(str(pileupColumn.pos) + ', Coverage ' + str(
+                        pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(
+                        insCount) + '/' + str(matchCount) + '/' + str(mismatchCount)
+                        + ' : ' + str(round(deletionProportion,2)) + '/'
+                        + str(round(insertionProportion, 2)) + '/'
+                        + str(round(matchProportion, 2)) + '/'
+                        + str(round(mismatchProportion, 2))
+                        + '\n')
+                    self.snps.append(pileupColumn.pos)
 
 
-                # This is a cheap way to stop analysis early. I will only analyze the first 250 reads.
-                # Potential problem: are these reads sorted somehow? Maybe my numbers are biased by only looking at the
-                # first reads
-                # Todo: This is another parameter that can be tuned. Add to inputs? Maybe.
-                maxAnalyzedReadCounts = 1000
-
-                if(readCount > maxAnalyzedReadCounts):
-                    break
-
-            matchProportion =      (1.0 * matchCount / readCount)
-            insertionProportion =  (1.0 * insCount / readCount)
-            deletionProportion =   (1.0 * delCount / readCount)
-            mismatchProportion =   (1.0 * mismatchCount / readCount)
-
-            #print ('Position ' + str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Match/Mismatch : ' + str(matchCount) + '/' + str(mismatchCount))
-            #print ('Match Percentage ' + str(matchProportion))
-            
-            # TODO: Should accepted match proprtion be a commandline parameter?
-            # if > 75% of bases match, this is not a heterzygous position
-            baseCutoff = .70
-
-            if(matchProportion > baseCutoff or insertionProportion > baseCutoff or deletionProportion > baseCutoff):
-                pass
-                #print ('Position ' + str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(insCount) + '/' + str(matchCount) + '/' + str(mismatchCount))
-                #print ('This position does not look heterozygous.')
 
 
-            # If coverage is very low, we should not use this position
-            # This logic is flawed, i think this is never working.
-            elif ((1.0 * pileupColumn.n / readCount) < .25):
-                pass
 
-            elif (mismatchProportion > baseCutoff):
-                pass
-
-            # These are the hardcoded values I used for the DRA analysis. Cheating.
-
-            # # I want to write a condition where we don't use the position if it's not clearly polymorphic.
-            # #elif (False):
-            # #    pass
-            # # If the mismatch proportion is too high, what happens? What if there are 2 different bases that are mismatched, like if both my alleles have a different snp from reference. I'll miss that right now.
-            #
-            # # TEMP, this is very temporary. This is specific to a reference.
-            # # TODO : Fix these hard coded values.
-            # # In a perfect world....I could tell what positions are heterozygous, but I can't.
-            # # I can tell if this sequence is a homopolymer though, but looking at the bases around it.....But that's not the correct thing to do.
-            # # I can keep this logic but make it a parameter. Big deletion regions are hard to analyze so I'm just ignoring them for now.
-            # elif(5890 <= pileupColumn.pos <= 5970):
-            #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
-            #     pass
-            # elif (6203 <= pileupColumn.pos <= 6212):
-            #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
-            #     pass
-            # # Big String of A's
-            # elif (774 <= pileupColumn.pos <= 796):
-            #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
-            #     pass
-            # #Known homopolymer positions....this is terrible programming.
-            # # I could at least pass these in ad ignored positions....
-            # elif (pileupColumn.pos in (403,430, 1479, 1510, 1683,
-            #         1991, 1996, 1997, 2003, 2009, 2093, 2100, 2133, 2134, 2191,
-            #         2262, 2289, 2294, 2342, 2449, 2450, 2524, 2647, 2663, 2732,
-            #         2895, 2902, 3113, 3114, 3180, 3197, 3362, 3396, 3453, 3542,
-            #         3551, 3665, 3832, 3903, 3953, 4108, 4109, 4400, 4639, 4698,
-            #         4703, 4769, 4785, 4786, 4828, 4878, 5084, 5301, 5302, 5449,
-            #         5575, 5597, 6155, 6279, 6280, 6314, 6375, 6376, 6712, 6755,
-            #         6790, 7084, 7631, 7718, 7769, 7971, 7978, 8132, 8133, 8134,
-            #         8314, 8315, 8352, 8476, 8477, 8478, 8642, 8650, 8651, 8652,
-            #         8653, 8654, 8655, 8656, 8657, 8698, 8725, 8753, 8759
-            #         )):
-            #     print('WARNING: I am skipping analysis on a region using hardcoded values, check this in allele_wrangler.')
-            #     pass
-
-
-            else:
-                #heterozygousBasesSummaryFile.write (str(pileupColumn.pos) + ', Coverage ' + str(pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(insCount) + '/' + str(matchCount) + '/' + str(mismatchCount) + '\n')
-                heterozygousBasesSummaryFile.write(str(pileupColumn.pos) + ', Coverage ' + str(
-                    pileupColumn.n) + ', Deletion/Insertion/Match/Mismatch : ' + str(delCount) + '/' + str(
-                    insCount) + '/' + str(matchCount) + '/' + str(mismatchCount)
-                    + ' : ' + str(round(deletionProportion,2)) + '/'
-                    + str(round(insertionProportion, 2)) + '/'
-                    + str(round(matchProportion, 2)) + '/'
-                    + str(round(mismatchProportion, 2))
-                    + '\n')
-                heterozygousPositions.append(pileupColumn.pos)
-                
         heterozygousBasesSummaryFile.close()
             #print ('Pileup Column # ' + str(pileupIterator))
 
@@ -359,16 +378,16 @@ class AlleleWrangler():
         # based on the heterozygous positions.  Each heterozygous position is a "dimension" in this space
         distanceArrays = {}
         for readID in readIDs:
-            distanceArrays[readID] = list([0] * len(heterozygousPositions))
+            distanceArrays[readID] = list([0] * len(self.snps))
 
         pileupIterator = bamfile.pileup(alignmentRef.id)
         for pileupColumn in pileupIterator:
             currentColumn = pileupColumn.pos
             
             # Only do this if the column number exists in our list of heterozygous positions
-            if currentColumn in heterozygousPositions:
+            if currentColumn in self.snps:
                 
-                heterozygousPositionIndex = heterozygousPositions.index(currentColumn)
+                heterozygousPositionIndex = self.snps.index(currentColumn)
                 
                 referenceBase = alignmentRef.seq[currentColumn].upper()
                 for pileupRead in pileupColumn.pileups:
@@ -381,11 +400,13 @@ class AlleleWrangler():
                     # This could actually be tuned to do the heterozygous split using ONLY snps.
                     # TODO: if we're having problems splitting based on homopolymers check this spot.
                     # Maybe, I want to count indels as 0, no distance.
+                    # TODO: Something to try: indels are -1. SNPS are 1. Match = 0
+                    # Maybe that would help the sorting?
                     
                     if(pileupRead.is_del == 1):
-                        distanceArrays[readID][heterozygousPositionIndex] = 1
+                        distanceArrays[readID][heterozygousPositionIndex] = -1
                     elif(pileupRead.indel > 0):
-                        distanceArrays[readID][heterozygousPositionIndex] = 1    
+                        distanceArrays[readID][heterozygousPositionIndex] = -1
                     else:   
                         currentBase = pileupRead.alignment.query_sequence[pileupRead.query_position].upper()  
                         if(currentBase == referenceBase):
@@ -394,70 +415,73 @@ class AlleleWrangler():
                         else:
                             distanceArrays[readID][heterozygousPositionIndex] = 1
 
-        readIDs1, readIDs2 = self.clusterReads(distanceArrays)
-        
-        # Write group reads to output files  
-        
-        strand1OutputFileLocation = join(join(self.outputRootDirectory, 'Strand1ClusteredReads'), 'Strand1Reads.' + self.readInputFormat)
-        strand2OutputFileLocation = join(join(self.outputRootDirectory, 'Strand2ClusteredReads'), 'Strand2Reads.' + self.readInputFormat)
-        
-        strand1OutputFile = createOutputFile(strand1OutputFileLocation)
-        strand2OutputFile = createOutputFile(strand2OutputFileLocation)
-        
-        # Loop parsed reads, sort by read cluster
-        for read in parsedReads:
-            
-            readFound = False
-            for readID in readIDs1:
-                if(readID in read.id):
-                    write([read], strand1OutputFile, self.readInputFormat)
-                    readFound = True
-                    break
-                
-            # Don't enter this loop if we already found the read. Save a bit of time.
-            if not readFound:
-                for readID in readIDs2:
-                    if(readID in read.id):
-                        write([read], strand2OutputFile, self.readInputFormat)
-                        break
-        
-        strand1OutputFile.close()
-        strand2OutputFile.close()
- 
+        self.printDistanceArrays(distanceArrays, join(self.heterozygousDirectory, 'DistanceArrays.csv'))
+
+        clusteredReadIDs = self.clusterReads(distanceArrays, 3)
+
         # Dictionary of results to return. Key is location of the consensus sequence.
         # Value is the # of reads represented in this consensus alignment.
         coverageResults = {}
- 
-        # Assemble those 2 output files
-        strand1Wrangler = AlleleWrangler(
-            strand1OutputFileLocation
-            , join(self.outputRootDirectory, 'Strand1Alignment')
-            , join(self.heterozygousDirectory, 'AlignmentReference.fasta')
-            , 6
-            , self.numberThreads
-            , False)        
-        strand1CoverageResults = strand1Wrangler.analyzeReads()
-        
-        strand2Wrangler = AlleleWrangler(
-            strand2OutputFileLocation
-            , join(self.outputRootDirectory, 'Strand2Alignment')
-            , join(self.heterozygousDirectory, 'AlignmentReference.fasta')
-            , 6
-            , self.numberThreads
-            , False)
-        strand2CoverageResults = strand2Wrangler.analyzeReads()
-        
-        # Merge the dictionaries of coverage values ane return them.
-        for key in strand1CoverageResults.keys():
-            coverageResults[key] = strand1CoverageResults[key]
-        for key in strand2CoverageResults.keys():
-            coverageResults[key] = strand2CoverageResults[key]
-        
+
+        for zeroBasedClusterIndex, readCluster in enumerate(clusteredReadIDs):
+            # I want to call the Strand (1 and 2), not Strand (0 and 1).
+            clusterIndex = zeroBasedClusterIndex + 1
+
+            clusteredReadIDs = readCluster.keys()
+
+            clusterOutputDir = join(self.outputRootDirectory, 'Strand' + str(clusterIndex) + 'ClusteredReads')
+
+            distanceArrayFileName = join(clusterOutputDir, 'Strand' + str(clusterIndex) + 'DistanceArrays.csv')
+            self.printDistanceArrays(readCluster, distanceArrayFileName)
+
+            readOutputFileName = join(clusterOutputDir, 'Strand' + str(clusterIndex) + 'Reads.' + self.readInputFormat)
+            readOutputFile = createOutputFile(readOutputFileName)
+
+            # Loop parsed reads, grab reads belonging to this cluster.
+            # FYI it looks like each input is clustered in the output, i haven't found a missing read yet. I should still check.
+            for readObject in parsedReads:
+
+                #print ('ReadClusterIndex=' + str(zeroBasedClusterIndex))
+                #print ('AllReadID=' + str(readObject.id))
+
+                for clusteredReadID in clusteredReadIDs:
+                    #print ('clusteredReadID=' + str(clusteredReadID))
+
+                    if (readObject.id == clusteredReadID):
+                        write([readObject], readOutputFile, self.readInputFormat)
+                        break
+
+            readOutputFile.close()
+
+            currentWranglerObject = AlleleWrangler(
+                readOutputFileName
+                , join(self.outputRootDirectory, 'Strand' + str(clusterIndex) + 'Alignment')
+                , join(self.heterozygousDirectory, 'AlignmentReference.fasta')
+                , 6
+                , self.numberThreads
+                , False
+                , self.snps)
+            currentCoverageResults = currentWranglerObject.analyzeReads()
+
+            # Merge the dictionaries of coverage values ane return them.
+            for key in currentCoverageResults.keys():
+                coverageResults[key] = currentCoverageResults[key]
+
         print ('Done Phasing Reads.')
         return coverageResults
 
-        
-    def clusterReads(self, dataInput):
+
+    def printDistanceArrays(self, distanceArrays, fileLocation):
+        distanceArrayOutputFile = createOutputFile(fileLocation)
+        readIDs = distanceArrays.keys()
+
+        for readID in readIDs:
+            distanceArrayOutputFile.write(readID + ',')
+            for distanceValue in distanceArrays[readID]:
+                distanceArrayOutputFile.write(str(distanceValue) + ',')
+            distanceArrayOutputFile.write('\n')
+
+    def clusterReads(self, dataInput, numClusters):
         readIDs = list(dataInput.keys())
         readDistanceArrays=asarray([dataInput[k] for k in readIDs if k in dataInput])
         
@@ -466,26 +490,48 @@ class AlleleWrangler():
         print('They are of length ' + str(len(readDistanceArrays[0])))
         
         # TODO: I can choose number of jobs/threads.
-        kmeansObject = KMeans(n_clusters=2 )
+        kmeansObject = KMeans(n_clusters= numClusters)
         predictedLabels = kmeansObject.fit_predict(readDistanceArrays)
         
         print ('Done Clustering. Here are the predicted labels:\n' + str(predictedLabels))
         
         # Get read IDs from each cluster and populate arrays
-        strand1ReadIDs = []
-        strand2ReadIDs = []
-        
-        for labelIndex, label in enumerate(predictedLabels):
-            #print ('Read:' + str(readIDs[labelIndex]) + ' , Label: ' + str(label) + ' Data:\n' + str(readDistanceArrays[labelIndex]))
-            #Arbitrarily, label 0 = strand 1 and label 1 = strand 2
-            if(label == 0):
-                strand1ReadIDs.append(readIDs[labelIndex])
-            elif(label == 1):
-                strand2ReadIDs.append(readIDs[labelIndex])
-            else:
-                raise Exception('Unknown Cluster Label:' + str(label) + '. Perhaps you ended up with extra clusters.')
+        # Store them as their own dictionary instead of arrays. I hope that didn't break much.
 
-        return strand1ReadIDs, strand2ReadIDs
+        #strand1ReadIDs = {}
+        #strand2ReadIDs = {}
+
+        clusteredReadIDs = []
+        for i in range(0,numClusters):
+            clusteredReadIDs.append({})
+
+
+        # Each read has been assigned a label, for which cluster it should appear in. Loop through them.
+        for labelIndex, label in enumerate(predictedLabels):
+            readID = readIDs[labelIndex]
+
+            #print ('LabelIndex=' + str(labelIndex))
+            #print ('ReadID=' + str(readID))
+            #print ('Length of clusteredReadIDs:' + str(len(clusteredReadIDs)))
+
+            # Loop through my clusters, assign each read to one of the clusters.
+            labelFound = False
+            for clusterIndex in range (0,numClusters):
+                #print ('ClusterIndex=' + str(clusterIndex))
+                if(label == clusterIndex):
+                    labelFound = True
+                #    print ('Label Found.')
+                    #print ()
+
+                    clusteredReadIDs[clusterIndex][readID] = dataInput[readID]
+
+            if(not labelFound):
+                raise Exception('This read ( ' + str(readID) + ' ) was not clustered successfully, why did clustering break? It has a label of: ' + str(label))
+
+
+        return clusteredReadIDs
+
+        #return strand1ReadIDs, strand2ReadIDs
             
     # Input = location of Reference Sequence
     # Output = Location of the Consensus Sequence    
@@ -518,7 +564,7 @@ class AlleleWrangler():
             self.wranglerLog.write('Reference Filename:' + str(currentReferenceSequence) + '\n')
 
 
-            self.alignReads(currentReferenceSequence,self.readInput,currentIterationSubdirectory, True)
+            alignReads(currentReferenceSequence,self.readInput,currentIterationSubdirectory, True, self.numberThreads, True)
             self.currentAlignmentInfo = self.analyzeAlignment(currentIterationSubdirectory)
             
             # If we want more iterations, I should Recurse and try again.

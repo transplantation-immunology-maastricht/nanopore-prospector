@@ -22,12 +22,14 @@ from .minion_read_collection import MinionReadCollection, createCollectionFromRe
 from .barcode_demultiplexer import splitByBarcode
 from nanopore_prospector.common import getReadFileType
 
+from Bio.SeqIO import parse as parseRecords
+
 from Bio.SeqIO import write
 from allele_wrangler.allele_wrangler import createOutputFile
 
 #nit_picker.prepareReads(readInput, outputResultDirectory, sampleID, barcodeFileLocation, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality )
 #inputReads and outputDirectory are necessary.  The rest can be "None" if you would like.            
-def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, referenceFileLocation, minimumReadLength, maximumReadLength, minimumReadQuality, maximumReadQuality ):
+def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, referenceFileLocation, minimumReadLength, maximumReadLength, minimumReadQuality, maximumReadQuality, calculateReadStatistics ):
     print ('Preparing Reads')
     
     #TODO: Create an output file with read stats, like the read extractor did.
@@ -43,6 +45,12 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
     if (isfile(inputReads)):
         print ('Read input is a file that exists.')
         allReads = createCollectionFromReadFile(inputReads)
+
+        if(referenceFileLocation is not None):
+            allReads.setReferenceSequence(list(parseRecords(referenceFileLocation, 'fasta'))[0])
+        else:
+            allReads.setReferenceSequence(None)
+
     elif (isdir(inputReads)):
         # Loop through input files and concatenate them.
         print ('Read input is a directory that exists.')
@@ -125,7 +133,7 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
 
     # Output Reads
     if(len(allReads.readCollection)>0):
-        readStats['all_reads'] = allReads.outputReadPlotsAndSimpleStats(outputDirectory, 'All', sampleID, referenceFileLocation)
+        readStats['all_reads'] = allReads.outputReadPlotsAndSimpleStats(outputDirectory, 'All', sampleID, referenceFileLocation, calculateReadStatistics)
       
     
     # If Pass reads are not the same size as All reads, 
@@ -133,14 +141,14 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
     if(len(allReads.readCollection) != len(passReadCollection.readCollection)):
 
         if(len(lengthRejectReadCollection.readCollection)>0):
-            readStats['length_rejected'] = lengthRejectReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Length Rejected', sampleID, referenceFileLocation)
+            readStats['length_rejected'] = lengthRejectReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Length Rejected', sampleID, referenceFileLocation, calculateReadStatistics)
             
         if(len(qualityRejectReadCollection.readCollection)>0):
-            readStats['quality_rejected'] = qualityRejectReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Quality Rejected', sampleID, referenceFileLocation)
+            readStats['quality_rejected'] = qualityRejectReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Quality Rejected', sampleID, referenceFileLocation, calculateReadStatistics)
     
         if(barcodeFileLocation is None):
             print('No barcode file was provided. I will not attempt to de-multiplex the allReads.')
-            readStats['pass_reads'] = passReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Pass', sampleID, referenceFileLocation)
+            readStats['pass_reads'] = passReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Pass', sampleID, referenceFileLocation, calculateReadStatistics)
     
         else:
             print('Provided Barcode File:' + str(barcodeFileLocation) + '\nI will de-multiplex the allReads.')
@@ -154,6 +162,7 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
 
 
     # TODO: I don't really want to pass in these stats like this. MinionReadCollection should keep track of pass/fail reads, so it's not necessary.
+    # These variables are missing from the read collection until I call setReference.
     alignedReadCount = allReads.totalAlignedReadCount
     meanAlignedReadLength = mean(allReads.alignedReadLengths)
     meanCalculatedQuality = mean(allReads.alignedReadQualityScores)
