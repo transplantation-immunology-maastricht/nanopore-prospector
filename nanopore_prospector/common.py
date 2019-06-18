@@ -17,9 +17,10 @@
 import sys
 
 from pylab import clf, scatter, xlabel, ylabel, title, savefig
+from random import shuffle
 
 from os.path import split, isdir, isfile, join, expanduser, abspath, exists, splitext
-from os import makedirs, system
+from os import makedirs, system, walk
 
 from xml.etree import ElementTree as ET
 from xml.dom import minidom as MD
@@ -31,7 +32,7 @@ from datetime import datetime
 from pysam import AlignmentFile
 
 
-def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, useReadSubset, numberThreads, excludeShortAlignments):
+def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, useReadSubset, numberThreads, minimumAlignmentLength):
     # TODO: Consume the number of threads, pretty sure I can pass this into minimap2.
     # TODO: Maybe use #threads+1 because minimap2 always uses one thread for IO during alignment. Double check that.
 
@@ -39,6 +40,11 @@ def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, us
     # TODO: They align because (i think) of false homology within the gene. It looks like a hump of coverage with lots of false SNPs.
     # TODO: The solution is in the -m parameter in minimap2. This is a minimum length for smaller aligned chains.
     # TODO: -m 3000 worked for a reference length of about 5600, so maybe 1/2 reference length is a good guess.
+
+    # TODO: this is not a good solution. The major problem is With DP, many of my reads are too short compared \
+    # to reference. New solution is to pass a minimum alignment length. i try that, if I have a problem with false, unaligned reads, this is why.
+    # If my parameters are wrong, check that I'm passing a minimumReadLength, not a boolean to eliminate the shortReads
+
 
     # perform minimap alignment to align reads against a reference.
     # This method returns the # of reads that aligned to this reference.
@@ -58,8 +64,11 @@ def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, us
         sequenceWriter.close()
 
         # Index The Reference
-        referenceIndexName = newReferenceLocation.replace('.fasta', '.mmi')
-        cmd = ('minimap2 -d ' + referenceIndexName + ' ' + newReferenceLocation)
+        #referenceIndexName = newReferenceLocation.replace('.fasta', '.mmi')
+        #cmd = ('minimap2 -d ' + referenceIndexName + ' ' + newReferenceLocation)
+
+        referenceIndexName = newReferenceLocation + '.lastindex'
+        cmd = 'lastdb -Q 0 ' + referenceIndexName + ' ' + newReferenceLocation
         system(cmd)
 
     except Exception:
@@ -67,11 +76,13 @@ def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, us
         raise
 
     # TODO: Make this a commandline parameter.  Lower = faster. Higher = more accurate consensus correction
-    alignmentReadSubsetCount = 150
+    # Change the parameter from "usesubset" to "max read count"...something like that.
+    alignmentReadSubsetCount = 5000
     try:
         if useReadSubset:
+            print ('Using a read Subset')
             # load Reads
-            parsedReads = list(parse(readFileLocation, self.readInputFormat))
+            parsedReads = list(parseRecords(readFileLocation, getReadFileType(readFileLocation)))
 
             # If there aren't enough reads for this
             if (len(parsedReads) < alignmentReadSubsetCount):
@@ -94,6 +105,7 @@ def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, us
 
         else:
             # We'll use the whole read file.
+            print ('Using All reads, not a subset.')
             pass
 
     except Exception:
@@ -108,35 +120,87 @@ def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, us
         # Parameters depend on "read type"
         # if i have a fastq, i assume these are minion reads.
         # if i have a fasta, i assume these are consensus sequences.
+
         if (getReadFileType(readFileLocation) == 'fasta'):
-            minimapParams = '-ax asm5'
+            #minimapParams = '-ax asm20'
+            #lastargs = "-s 2 -T 0 -Q 0 -a 1" # These parameters work for Last.
+            # Penalizing Insertions heavily. Extension is still a low penalty. I want to minimize insertions.for consensus sequences. 3 seems to be the sweet spot.
+            lastargs = "-s 2 -T 0 -Q 0 -a 1 -A 3"
         elif (getReadFileType(readFileLocation) == 'fastq'):
             print ('attempting the consensus parameters instead of ONT settings.')
-            minimapParams = '-ax map-ont'
+            #minimapParams = '-ax map-ont'
+            lastargs = "-s 2 -T 0 -Q 1 -a 1"
         else:
             raise Exception('Unknown read file type....')
 
-        if(excludeShortAlignments):
-            # TODO: I'm using -m as a parameter for minimum bases for aligned reads. Maybe 1/3 length of the reference is a good default value
+        #if(excludeShortAlignments):
+        #if(minimumAlignmentLength is not None):
+            # TODO: I'm using -m as a parameter in minimap for minimum bases for aligned reads. Maybe 1/3 length of the reference is a good default value
             # TODO: I should set the file type based on a parameter.
-            minimumReadValue = int(round(len(refSequence.seq) / 2))
-            minimapParams += ' -m ' + str(minimumReadValue)
-        else:
-            pass
+            # TODO: Scrapped that Idea, just going with minimum alignmentLength.
+            # TODO: Ok Actually -m is a parameter for "minimum chaining score" in minimap2. This surprises me, i think the parameter was different before.
+            # Good to know.
+            # TODO: Figure out another minimum alignment length somehow. Short alignments are still getting lost. The minimumAlignmentLength is not actually being used.
+            #minimumReadValue = int(round(len(refSequence.seq) / 2))
+            #minimapParams += ' -m ' + str(minimumReadValue)
+            #minimapParams += ' -m ' + str(minimumAlignmentLength)
+        #    pass
 
-        cmd = ("minimap2 " + minimapParams + " " +
-               referenceIndexName + " " +
-               readFileLocation +
-               " | samtools view -b | samtools sort -o "
-               + alignmentOutputName)
-        # print ('alignment command:\n' + cmd)
+        #else:
+        #    pass
+
+        # minimap2 is actually pretty bad in my opinion. I'm not using it because I have so many problems with misaligned reads.
+        #cmd = ("minimap2 " + minimapParams + " " +
+        #       referenceIndexName + " " +
+        #       readFileLocation +
+        #       " | samtools view -b | samtools sort -o "
+        #       + alignmentOutputName)
+
+        # TODO: im calling python2 here, think about a better way to do it.
+        lastTxtAlignmentLocation = join(alignmentOutputDirectory, 'LastAlignment.last.txt')
+        cmd = ("lastal " + lastargs + " " +
+            referenceIndexName + " " +
+            readFileLocation + " | python2 /usr/bin/last-map-probs > " +
+            lastTxtAlignmentLocation)
         system(cmd)
+
+        # Convert to sam
+        samAlignmentName = join(alignmentOutputDirectory, 'LastAlignment.sam')
+        cmd = "python2 /usr/bin/maf-convert sam " + lastTxtAlignmentLocation + " > " + samAlignmentName
+        system(cmd)
+
+
+        cmd = "samtools view -T " + newReferenceLocation + " -bS " + samAlignmentName + " | samtools sort -o " + alignmentOutputName
+        system(cmd)
+
+
+        # Convert to bam
+
+
+        #print ('RunningThisCommand:\n' + cmd + '\n')
+
+
+
+
+              # " | samtools view -b | samtools sort -o "
+              # + alignmentOutputName)
+
+
+
+        # print ('alignment command:\n' + cmd)
+
 
     except Exception:
         print ('Exception aligning reads against reference. Are minimap2 and samtools installed?')
         raise
 
-        # Part 3 Index Alignment
+
+
+
+
+
+
+    # Part 3 Index Alignment
     try:
         cmd = ("samtools index " + alignmentOutputName)
         # print ('alignment index command:\n' + cmd)
@@ -148,6 +212,36 @@ def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, us
 
     alignedReadCount = calculateTotalCoverage(alignmentOutputName)
     return alignedReadCount
+
+def getDirectoryAlignmentStats(analysisDirectory, outputFileName, recursive):
+    # Search a directory for bam files. for each bam file, calculate some simple statistics.
+    # Most important is total coverage.
+
+    print('Searching ' + str(analysisDirectory) + ' for .bam files.')
+
+    # Create an output file.
+    statOutputFile = createOutputFile(outputFileName)
+    statOutputFile.write('AlignmentFile,ReadCoverage\n')
+
+    # Loop Bam files
+    for root, directories, filenames in walk(analysisDirectory):
+        for directory in directories:
+            print('Searching ' + str(join(root, directory)) + ' for .bam files.')
+            pass
+        for filename in filenames:
+            fullFileNamePath = join(root, filename)
+
+            if fullFileNamePath.endswith('.bam'):
+                readCoverage = calculateTotalCoverage(fullFileNamePath)
+                statOutputFile.write(fullFileNamePath + ',' + str(readCoverage) + '\n')
+
+
+    print('Done. Results were written to ' + outputFileName)
+
+    # Close output file if necessary.
+    statOutputFile.close()
+
+
 
 def calculateTotalCoverage(alignmentOutputName):
     # The number of reads that are involved in this alignment

@@ -483,14 +483,22 @@ def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutpu
              
                     
     # New loop for writing objects.
-    # Write all reads. 
+    # Write all reads.
+    #def outputReadPlotsAndSimpleStats
+    # (self, outputDirectory, plotName,
+    # sampleID, referenceSequenceLocation,
+    # calculateReadStatistics, minAlignmentLength):
+
     for readCollection in geneLevelReadCollections:
         readCollection.summarizeSimpleReadStats()
         readCollection.outputReadPlotsAndSimpleStats(
             outputDirectory
             , 'Reads'
             , 'HLA-' + str(readCollection.gene)
-            , None)
+            , None
+            , False
+            , 0
+        )
         
     # Unsorted reads
     unsortedReadCollection.summarizeSimpleReadStats()
@@ -498,8 +506,11 @@ def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutpu
         outputDirectory
         , 'Reads' 
         , 'unsorted'
-        , None)
-    
+        , None
+        , False
+        , 0
+    )
+
      
         
     # Write sort results to the output file and close the Gene and Group specific fasta files.    

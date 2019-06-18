@@ -12,8 +12,8 @@ source /home/ben/anaconda2/bin/activate minionvironment
 
 
 python Blast_Minion_Reads.py \
-    "/home/minion/MinIONData/DianeClassII/HLA_Alleles_APD_ClassII.fasta"\
-    "/home/minion/MinIONData/DianeClassII/extracts_min_2000/BC02_TwoDirReads.fasta"\
+    "/home/minion/MinIONData/DianeClassII/HLA_Alleles_APD_ClassII.fasta" \
+    "/home/minion/MinIONData/DianeClassII/extracts_min_2000/BC02_TwoDirReads.fasta" \
     "/home/minion/MinIONData/DianeClassII/BC02_Sorted"
  
 

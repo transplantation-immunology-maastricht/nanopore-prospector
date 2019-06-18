@@ -28,7 +28,7 @@ from Bio.Align import AlignInfo
 from Bio.Align.Applications import ClustalOmegaCommandline
 # from Bio.Sequencing.Applications import BwaIndexCommandline
 
-#from random import shuffle
+from random import shuffle
 
 from sklearn.cluster import KMeans
 from numpy import asarray
@@ -205,6 +205,8 @@ class AlleleWrangler():
 
         if (self.snps is not None and len(self.snps) > 0):
             # A string of SNPs was passed in, I don't need to calculate them myself.
+            # TODO: I could write alignment stats here, like I do when i self-calculate the hetero positions.
+            # This is just a simple list of 0-based positions.
             for snp in self.snps:
                 heterozygousBasesSummaryFile.write(str(snp) + '\n')
 
@@ -404,9 +406,11 @@ class AlleleWrangler():
                     # Maybe that would help the sorting?
                     
                     if(pileupRead.is_del == 1):
-                        distanceArrays[readID][heterozygousPositionIndex] = -1
+                        distanceArrays[readID][heterozygousPositionIndex] = 1
+                        #distanceArrays[readID][heterozygousPositionIndex] = -1
                     elif(pileupRead.indel > 0):
-                        distanceArrays[readID][heterozygousPositionIndex] = -1
+                        distanceArrays[readID][heterozygousPositionIndex] = 1
+                        #distanceArrays[readID][heterozygousPositionIndex] = -1
                     else:   
                         currentBase = pileupRead.alignment.query_sequence[pileupRead.query_position].upper()  
                         if(currentBase == referenceBase):
@@ -417,7 +421,8 @@ class AlleleWrangler():
 
         self.printDistanceArrays(distanceArrays, join(self.heterozygousDirectory, 'DistanceArrays.csv'))
 
-        clusteredReadIDs = self.clusterReads(distanceArrays, 3)
+        # TODO: Im making 3 clusters. that worked. I need to make a parameter for cluster count.
+        clusteredReadIDs = self.clusterReads(distanceArrays, 2)
 
         # Dictionary of results to return. Key is location of the consensus sequence.
         # Value is the # of reads represented in this consensus alignment.
@@ -593,127 +598,6 @@ class AlleleWrangler():
             print (exc_info()[1])
             print (exc_info()[2])        
             raise 
-
-    """
-moving this method to nanopore_prospector.common.py
-TODO: Delete this. 
-    
-    def alignReads(self, referenceLocation, readFileLocation, alignmentOutputDirectory, useReadSubset):
-        # Perform BW Alignment.  Align all reads against the Reference.
-        # This method returns the # of reads that aligned to this reference.
-        print('\nStep 1.) Aligning reads against the reference.')
-        
-        if not isdir(alignmentOutputDirectory):
-            makedirs(alignmentOutputDirectory)
-        
-        # Part 1 Index the Reference        
-        try:
-            # Copy the reference sequence to the alignment directory. This is a complicated way to do it.
-            newReferenceLocation = join(alignmentOutputDirectory,'AlignmentReference.fasta')
-            refSequence = list(parse(referenceLocation, 'fasta'))[0]
-            refSequence.id = 'AlignmentReference'
-            sequenceWriter = createOutputFile(newReferenceLocation)
-            write([refSequence], sequenceWriter, 'fasta')
-            sequenceWriter.close()
-                        
-            # Index The Reference
-            referenceIndexName = newReferenceLocation.replace('.fasta','.mmi')        
-            cmd = ('minimap2 -d ' + referenceIndexName + ' ' + newReferenceLocation)
-            system(cmd)
-            #asdf
-            #indexCmd = BwaIndexCommandline(infile=newReferenceLocation, algorithm="bwtsw")
-            #indexCmd()
-
-            
-        except Exception:
-            print ('Exception indexing alignment reference. Is bwa installed? folder writing permission issue?')                  
-            raise
-        
-        # TODO: Make this a commandline parameter.  Lower = faster. Higher = more accurate consensus correction
-        alignmentReadSubsetCount = 150
-        try:
-            if useReadSubset:
-                # load Reads
-                parsedReads = list(parse(readFileLocation, self.readInputFormat))
-                
-                # If there aren't enough reads for this
-                if (len(parsedReads) < alignmentReadSubsetCount):
-                    alignmentReadSubsetCount = len(parsedReads)
-                
-                # choose random subset
-                randomIndexes = list(range(0, len(parsedReads)))
-                shuffle(randomIndexes)                
-                sampledReads = []
-                for i in range(0,alignmentReadSubsetCount):
-                    sampledReads.append(parsedReads[randomIndexes[i]])
-                
-                # write random reads to alignment directory
-                # Reassign the reads we'll use downstream
-                readFileLocation = join(alignmentOutputDirectory, 'ReadSample.fasta')        
-                readSampleWriter = createOutputFile(readFileLocation)          
-                   
-                write(sampledReads, readSampleWriter, 'fasta')
-                readSampleWriter.close()
-
-            else:
-                # We'll use the whole read file.
-                pass
-                        
-        except Exception:
-            print ('Exception selecting a read subset.')                  
-            raise
-        
-        # Part 2 Align
-        try:
-            # TODO: How can i put this into biopython?  Pipelines are hard.
-            # align | sam->bam | sort
-            
-            #tempAlignmentName = join(alignmentOutputDirectory,'alignment')
-            alignmentOutputName = join(alignmentOutputDirectory,'alignment.bam')
-            #bwaMemArgs = "-t " + str(self.numberThreads) + " -x ont2d"
-            #cmd = ("bwa mem " + 
-            #    bwaMemArgs + " " +  
-            #    newReferenceLocation + " " +
-            #    readFileLocation + 
-            #    " | samtools view  -Sb - | samtools sort -o "
-            #    + alignmentOutputName)
-            #print ('alignment command:\n' + cmd)
-            #system(cmd)
-            
-            # TODO: Honeslty the -ax map-ont settings sometimes allow for some messed up alignments.
-            # It allows "secondary" alignments int he bam, which are not quite accurate
-            # Full of SNPs and makes the alignment a bit bogus.
-            # I am doing some tests, it might make more sense to use the asm5 or asm10 settings instead of the ONT settings.            
-            cmd = ("minimap2 -ax map-ont " + 
-                referenceIndexName + " " +  
-                readFileLocation + 
-                " | samtools view -b | samtools sort -o "
-                + alignmentOutputName)
-        #print ('alignment command:\n' + cmd)
-            system(cmd)
-            
-            
-            #alignmentOutputName = tempAlignmentName + '.bam'
-            
-        except Exception:
-            print ('Exception aligning reads against reference. Are bwa and samtools installed?')                  
-            raise 
-        
-        # Part 3 Index Alignment
-        try:
-            cmd = ("samtools index " + alignmentOutputName)
-            #print ('alignment index command:\n' + cmd)
-            system(cmd)
-            #print ('index command:\n' + cmd)
-        except Exception:
-            print ('Exception indexing alignment reference. Is bwa installed?')                  
-            raise 
-        
-        alignedReadCount = calculateTotalCoverage(alignmentOutputName)
-        return alignedReadCount
-
-    """
-
 
 
     def analyzeAlignment(self, alignmentOutputDirectory):

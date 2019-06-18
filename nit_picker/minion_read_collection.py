@@ -125,7 +125,7 @@ class MinionReadCollection:
         # self.summarizeSimpleReadStats()
 
     # TODO: Can i remove referenceSequenceLocation and use the "self" value? Probably.
-    def outputReadPlotsAndSimpleStats(self, outputDirectory, plotName, sampleID, referenceSequenceLocation, calculateReadStatistics):
+    def outputReadPlotsAndSimpleStats(self, outputDirectory, plotName, sampleID, referenceSequenceLocation, calculateReadStatistics, minAlignmentLength, minimumSnpPctCutoff):
         self.summarizeSimpleReadStats()
 
         # Remove spaces for file names.
@@ -155,7 +155,7 @@ class MinionReadCollection:
                           , self.readAvgReportedPhredQualities
                           , "Read Lengths"
                           , "Avg Read Quality(Phred)"
-                          , join(outputDirectory, str(sampleID) + '_' + simplePlotName))
+                          , join(outputDirectory, str(sampleID) + '_' + simplePlotName + '.png'))
 
         # TODO: I really only need to calculate these statistics against the pass reads.
         # Can i filter that somehow?
@@ -167,7 +167,7 @@ class MinionReadCollection:
             # TODO: Calculate number of threads somewhere. I should pass it into nit_picker.
             numberThreads = 4
             self.calculateReadQualities(referenceSequenceLocation, outputDirectory, simplePlotName,
-                                   numberThreads)
+                                   numberThreads, minAlignmentLength, minimumSnpPctCutoff)
 
         # Return some simple stats. These are useful downstream.
         # readstats is a 2d array, with lengths and qualities.
@@ -439,20 +439,13 @@ class MinionReadCollection:
         createScatterPlot('Alignment Quality', xValues, yValues, 'Reference Position', 'Percent Read Match',
                           alignmentQualityFileName)
 
-    def callSNP(self, referencePositionZeroBased, referenceBase):
+    def callSNP(self, referencePositionZeroBased, referenceBase, minimumSnpPctCutoff):
         # Assign an alternate base if there is a snp at this position.
         # Do nothing if there is no SNP here.
-
-        # Declaring a constant here so it's easier to change. .90 is arbitrary
-        # TODO: Should this be a commandline param? Yes.
-        # .9999999 is useful for identifying any position that might be polymorphic sometimes.
-        # Like if we are searching for a single snp in consensus sequences.
-        # .90 is probably more useful for minion reads
-        # polymorphicBaseCutoff = .99999999
-
-        # This method is not perfect, we're calling some basecalling errors as SNPS and homopolymers.
-
-        polymorphicBaseCutoff = .80
+        # TODO: I made minimumSnpPctCutoff a parameter. What will break?
+        # expectedMatchingBaseAccuracy is the inverse of the minimumSnpPctCutoff. It's a measure of "accuracy", not a
+        # minimum polymorphism amount.
+        expectedMatchingBaseAccuracy = (1-minimumSnpPctCutoff)
 
         alignedReads = self.alignedReadCountsByPosition[referencePositionZeroBased]
 
@@ -463,22 +456,33 @@ class MinionReadCollection:
         else:
             matchPercent = self.matchReadCountsByPosition[referencePositionZeroBased] / alignedReads
 
-        # Is there an insertion? Insertion count > match count * cutoff
-        if (self.insertionReadCountsByPosition[referencePositionZeroBased] > self.matchReadCountsByPosition[
-            referencePositionZeroBased] * polymorphicBaseCutoff):
+        # Bad: Is there an insertion? Insertion count > match count * accuracy
+        # Better Logic: Is there a deletion? Insertion count > aligned count * snpCutoff
+        #if (self.insertionReadCountsByPosition[referencePositionZeroBased] > self.matchReadCountsByPosition[referencePositionZeroBased] * expectedMatchingBaseAccuracy):
+        if (self.insertionReadCountsByPosition[referencePositionZeroBased] > self.alignedReadCountsByPosition[referencePositionZeroBased] * minimumSnpPctCutoff):
             # TODO: Calculate the inserted text based on insertion length. For now i will call this SNP an I.
-            self.snpCallsByPosition[referencePositionZeroBased] = 'I'
+            # TODO: I'm disabling this for now. It's not so useful to just place an I in the sequence.
+            # Since I don't know what the insertion should be, I skip for now.
+            # TODO: If I'm trying to change the consensus, I should figure out what text to change in the sequence. What if there are different inserted sequences?
             # TODO Change the consensus sequence for this insertion?
+            self.snpCallsByPosition[referencePositionZeroBased] = 'I'
+            #pass
 
-        # Is there a deletion? Deletion count > match count * cutoff
-        if (self.deletionReadCountsByPosition[referencePositionZeroBased] > self.matchReadCountsByPosition[
-            referencePositionZeroBased] * polymorphicBaseCutoff):
+
+        # TODO: I found a bug in how I detect deletions. It happens when I use .99999 as a expected accuracy.
+        # TODO: When there are more matching sequences than deletions detected, I do not detect the SNP.
+        # TODO: Solution: change the deletion detection logic.
+        # TODO: Probably the same for insertions.
+        # Flawed Logic: Is there a deletion? Deletion count > match count * accuracy
+        # Better Logic: Is there a deletion? Deletion count > aligned count * snpCutoff
+        #if (self.deletionReadCountsByPosition[referencePositionZeroBased] > self.matchReadCountsByPosition[referencePositionZeroBased] * expectedMatchingBaseAccuracy):
+        if (self.deletionReadCountsByPosition[referencePositionZeroBased] > self.alignedReadCountsByPosition[referencePositionZeroBased] * minimumSnpPctCutoff):
             self.snpCallsByPosition[referencePositionZeroBased] = '-'
 
             # TODO Delete this base from the consensus sequence
 
         # If this position is polymorphic, also print this to the polymorphic positions output file.
-        if (self.alignedReadCountsByPosition[referencePositionZeroBased] > 0 and matchPercent < polymorphicBaseCutoff):
+        if (self.alignedReadCountsByPosition[referencePositionZeroBased] > 0 and matchPercent < expectedMatchingBaseAccuracy):
             # Not an indel, this is probably a mismatch.
 
             maxBaseCount = max(
@@ -543,7 +547,7 @@ class MinionReadCollection:
         snpSummaryOutputFile.write(row3Text + '\n')
         snpSummaryOutputFile.close()
 
-    def writeAlignmentSummary(self, alignmentSummaryOutputFilename):
+    def writeAlignmentSummary(self, alignmentSummaryOutputFilename, minimumSnpPctCutoff):
         alignmentSummaryOutputFile = createOutputFile(alignmentSummaryOutputFilename)
         polymorphicPositionsOutputFile = createOutputFile(
             alignmentSummaryOutputFilename.replace('.csv', '.PolymorphicPositions.csv'))
@@ -556,7 +560,7 @@ class MinionReadCollection:
 
         for referencePositionZeroBased, referenceBase in enumerate(self.referenceSequence):
 
-            self.callSNP(referencePositionZeroBased, referenceBase)
+            self.callSNP(referencePositionZeroBased, referenceBase, minimumSnpPctCutoff)
 
             # print('analyzing base # ' + str(referencePositionZeroBased))
             # print ('the coverage should be:' + str(self.alignedReadCountsByPosition[referencePositionZeroBased]))
@@ -586,9 +590,10 @@ class MinionReadCollection:
         polymorphicPositionsOutputFile.close()
 
         # Write new consensus
+        # TODO: It seems like sometimes self.newConsensus is a String, sometimes its a Seq object. Not sure why.
         # write([self.newConsensus], newConsensusOutputFile, 'fasta')
         newConsensusOutputFile.write('>GeneratedConsensusSequence\n')
-        newConsensusOutputFile.write(self.newConsensus + '\n')
+        newConsensusOutputFile.write(str(self.newConsensus) + '\n')
         newConsensusOutputFile.close()
 
         self.writeSNPs(alignmentSummaryOutputFilename.replace('.csv', '.SNPs.csv'))
@@ -658,15 +663,19 @@ class MinionReadCollection:
 
 
     # TODO: this method is a big mess, try to break it up a bit. Can I move it within QualityStatistics? No, Into MinionReadCollection
-    #def calculateReadQualities(self, readFileLocation, outputDirectory, sampleID, numberThreads):
-    def calculateReadQualities(self, referenceSequencelocation, outputDirectory, sampleID, numberThreads):
+    # TODO: The minAlignmentLength is never used! Am i accidentally using a hardcoded value in there?
+    #def calculateReadQualities(self, referenceSequencelocation, outputDirectory, sampleID, numberThreads):
+    def calculateReadQualities(self, referenceSequencelocation, outputDirectory, sampleID, numberThreads, minAlignmentLength, minimumSnpPctCutoff):
+
         print ('Calculating Read Quality Statistics.')
         print ('I have this reference File:\n' + str(referenceSequencelocation))
 
         alignmentOutputDir = join(outputDirectory, sampleID + '_ReadQualityAnalysis')
         # Copy reference to outputdir
         referenceSequenceTargetLocation = join(alignmentOutputDir, 'AlignmentReference.fasta')
+        # Try to do this with all reference sequences, not just the first.
         alignmentRef = list(parse(referenceSequencelocation, 'fasta'))[0]
+        #alignmentRef = list(parse(referenceSequencelocation, 'fasta'))
 
         # Here I'm getting rid of the QualityStatistcs objects and using a MinIONReadCOllection insted.
         # qualStats = QualityStatistics(alignmentRef.seq)
@@ -679,7 +688,11 @@ class MinionReadCollection:
 
         # Align Reads against Reference
         print('Attempting the alignment, the read file location should be something:' + str(self.readFileLocation))
-        alignReads(referenceSequenceTargetLocation, self.readFileLocation, alignmentOutputDir, False, numberThreads, True)
+        # TODO: I changed this to use a read subset to make it faster, that might cause problems later.
+        # TODO: I'm passing a "True" as minimum alignmentLength? Fix this, duh. Actually it's not being used. It's an extra argument right now.
+        #alignReads(referenceSequenceTargetLocation, self.readFileLocation, alignmentOutputDir, True, numberThreads, True)
+        alignReads(referenceSequenceTargetLocation, self.readFileLocation, alignmentOutputDir, False, numberThreads, minAlignmentLength)
+
 
         # Open Alignment
         alignmentRef = list(parse(referenceSequenceTargetLocation, 'fasta'))[0]
@@ -756,10 +769,28 @@ class MinionReadCollection:
 
                 # If this read is a deletion
                 elif (pileupRead.is_del == 1):
-                    self.deletionReadCountsByPosition[referencePositionZeroBased] += 1
-                    self.storeAlleleSpecificPolymorphism(pileupRead.alignment.query_name,
-                                                                          referencePositionZeroBased,
-                                                                          '-')
+                    # TODO: Found a bug involving several base deletions.
+                    # A sequence with several deleted bases should only be counted as a single deletion.
+                    # The deletion is located at the very first base. The read does NOT count as a deletion if the
+                    # previous base is also a deletion.
+
+                    # Solution: Get the read id, check previous base.
+                    # If previous base is also a deletion, do nothing.
+                    #print('Deletion, RefPos(0based)=' + str(referencePositionZeroBased) + ', Read=' + str(pileupRead.alignment.query_name))
+                    alignedPairs = pileupRead.alignment.get_aligned_pairs()
+
+                    # If we are in the "middle" of a deletion, then there is also a deletion at the base to the left.
+                    alignedReadPositionsJustBeforeDeletion = [pair[0] for pair in alignedPairs if pair[1] == referencePositionZeroBased - 1][0]
+                    if(alignedReadPositionsJustBeforeDeletion is None):
+                        # Previous base is a deletion. We should NOT count this one.
+                        #print ('NOT a real deletion\n')
+                        pass
+                    else:
+                        #print( 'REAL deletion.\n')
+                        self.deletionReadCountsByPosition[referencePositionZeroBased] += 1
+                        self.storeAlleleSpecificPolymorphism(pileupRead.alignment.query_name, referencePositionZeroBased, '-')
+
+
                 # else if this read is an insertion
                 elif (pileupRead.indel > 0):
                     # This apparently indicates an insertion AFTER this base. The query text at this position is the reference
@@ -836,7 +867,7 @@ class MinionReadCollection:
                         self.TCountsByPosition[referencePositionZeroBased] += 1
 
         # TODO: Wait on this until the end? Maybe it's more useful after i calculate read qualities. Maybe not...
-        self.writeAlignmentSummary(join(alignmentOutputDir, 'AlignmentSummary.csv'))
+        self.writeAlignmentSummary(join(alignmentOutputDir, 'AlignmentSummary.csv'), minimumSnpPctCutoff)
         self.writePolymorphicAlleles(join(alignmentOutputDir, 'AlleleSpecificPolymorphisms.csv'))
         self.createAlignmentQualityGraph(join(alignmentOutputDir, 'AlignmentQuality.png'))
         self.createSlidingScaleAlignmentQualityGraph(
@@ -854,7 +885,7 @@ class MinionReadCollection:
 
         for index, read in enumerate(alignedReads):
             queryName = read.query_name
-            print('Looking at aligned read#' + str(index) + '/' + str(self.totalAlignedReadCount) + ':' + str(queryName))
+            #print('Looking at aligned read#' + str(index) + '/' + str(self.totalAlignedReadCount) + ':' + str(queryName))
             alignedPairs = read.get_aligned_pairs()
             alignedSequence = read.query_sequence
 
@@ -921,6 +952,13 @@ class MinionReadCollection:
             # Read Score = MatchScore / Alignment Length.
             # We're only looking at aligned portion, so we use reference_length.
             readScore = correctAlignedBaseScore / read.reference_length
+
+            # I have seen with ion torrent the reads are perfect. a readScore of 1 breaks the log10 calculation.
+            # I give an arbitrary high read score.
+            if (readScore == 1):
+                #print('READ SCORE GREATER THAN 1: ' + str(read))
+                readScore = .999999
+
 
             # Pretend this readScore is a correctly mapped percentage. we can calculate a Q(phred) score for each read.
             # Q = -10 log(10) P
@@ -1018,8 +1056,13 @@ class MinionReadCollection:
         for homopolymerTuple in self.homopolymerTuples:
             tupleOutputFile.write(str(homopolymerTuple[0]) + ',' + str(homopolymerTuple[1]) + ',' + str(homopolymerTuple[2]) + ',' + str(homopolymerTuple[3]) + '\n')
 
-        maxHomopolymerReferenceLength = max([t[2] for t in self.homopolymerTuples])
-        maxHomopolymerReadLength = max([t[3] for t in self.homopolymerTuples])
+        if (len(self.homopolymerTuples) == 0):
+            maxHomopolymerReferenceLength = 0
+            maxHomopolymerReadLength = 0
+        else:
+
+            maxHomopolymerReferenceLength = max([t[2] for t in self.homopolymerTuples])
+            maxHomopolymerReadLength = max([t[3] for t in self.homopolymerTuples])
 
         #print ('Max Length =' + str(maxHomopolymerLength))
 
