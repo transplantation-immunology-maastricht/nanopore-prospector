@@ -29,8 +29,8 @@ from allele_wrangler.allele_wrangler import createOutputFile
 
 #nit_picker.prepareReads(readInput, outputResultDirectory, sampleID, barcodeFileLocation, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality )
 #inputReads and outputDirectory are necessary.  The rest can be "None" if you would like.            
-def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, referenceFileLocation, minimumReadLength, maximumReadLength, minimumReadQuality, maximumReadQuality, calculateReadStatistics ):
-    print ('Preparing Reads')
+def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, referenceFileLocation, minimumReadLength, maximumReadLength, minimumReadQuality, maximumReadQuality, calculateReadStatistics, minimumSnpPctCutoff):
+    print ('Preparing Reads:' + inputReads)
     
     #TODO: Create an output file with read stats, like the read extractor did.
     #Create Read Stat File Here.
@@ -132,8 +132,15 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
 
 
     # Output Reads
+    # TODO: A potential problem. I'm passing a "minimum read length" as a "minimum alignment length"
+    # TODO: I divided it by 2, to help ensure the data will map. Relatively untested.
+
+    # Here's a bandaid, in case the minimum Read Length is None, I can't divide it by 2. Set it as something arbitrarily low.
+    if( minimumReadLength is None):
+        minimumReadLength = 2
+
     if(len(allReads.readCollection)>0):
-        readStats['all_reads'] = allReads.outputReadPlotsAndSimpleStats(outputDirectory, 'All', sampleID, referenceFileLocation, calculateReadStatistics)
+        readStats['all_reads'] = allReads.outputReadPlotsAndSimpleStats(outputDirectory, 'All', sampleID, referenceFileLocation, calculateReadStatistics, minimumReadLength / 2, minimumSnpPctCutoff)
       
     
     # If Pass reads are not the same size as All reads, 
@@ -141,14 +148,14 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
     if(len(allReads.readCollection) != len(passReadCollection.readCollection)):
 
         if(len(lengthRejectReadCollection.readCollection)>0):
-            readStats['length_rejected'] = lengthRejectReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Length Rejected', sampleID, referenceFileLocation, calculateReadStatistics)
+            readStats['length_rejected'] = lengthRejectReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Length Rejected', sampleID, referenceFileLocation, False, minimumReadLength / 2, minimumSnpPctCutoff)
             
         if(len(qualityRejectReadCollection.readCollection)>0):
-            readStats['quality_rejected'] = qualityRejectReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Quality Rejected', sampleID, referenceFileLocation, calculateReadStatistics)
+            readStats['quality_rejected'] = qualityRejectReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Quality Rejected', sampleID, referenceFileLocation, False, minimumReadLength / 2, minimumSnpPctCutoff)
     
         if(barcodeFileLocation is None):
             print('No barcode file was provided. I will not attempt to de-multiplex the allReads.')
-            readStats['pass_reads'] = passReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Pass', sampleID, referenceFileLocation, calculateReadStatistics)
+            readStats['pass_reads'] = passReadCollection.outputReadPlotsAndSimpleStats(outputDirectory, 'Pass', sampleID, referenceFileLocation, calculateReadStatistics, minimumReadLength / 2, minimumSnpPctCutoff)
     
         else:
             print('Provided Barcode File:' + str(barcodeFileLocation) + '\nI will de-multiplex the allReads.')
@@ -163,9 +170,11 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
 
     # TODO: I don't really want to pass in these stats like this. MinionReadCollection should keep track of pass/fail reads, so it's not necessary.
     # These variables are missing from the read collection until I call setReference.
-    alignedReadCount = allReads.totalAlignedReadCount
-    meanAlignedReadLength = mean(allReads.alignedReadLengths)
-    meanCalculatedQuality = mean(allReads.alignedReadQualityScores)
+    #alignedReadCount = allReads.totalAlignedReadCount
+    #allReads.totalAlignedReadCount is not assigned yet. I can cheat and just count the # of reads in the collection. This is a bug.
+    alignedReadCount = len(allReads.readCollection)
+    meanAlignedReadLength = mean(allReads.readLengths)
+    meanCalculatedQuality = mean(allReads.readAvgReportedPhredQualities)
     writeReadStats(readStats, outputDirectory, alignedReadCount, meanAlignedReadLength, meanCalculatedQuality)
 
 

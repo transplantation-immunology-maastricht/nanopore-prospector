@@ -408,7 +408,8 @@ class NanoporeProspectorMasterFrame(Frame):
                 , int(getConfigurationValue('min_length'))
                 , int(getConfigurationValue('max_length'))
                 , int(getConfigurationValue('min_quality'))
-                , int(getConfigurationValue('max_quality')))
+                , int(getConfigurationValue('max_quality'))
+                , False)
         else:
             preparedReadResults = prepareReads(getConfigurationValue('input_directory')
                 , preparedReadsOutputDirectory
@@ -418,7 +419,8 @@ class NanoporeProspectorMasterFrame(Frame):
                 , int(getConfigurationValue('min_length'))
                 , int(getConfigurationValue('max_length'))
                 , int(getConfigurationValue('min_quality'))
-                , int(getConfigurationValue('max_quality')))
+                , int(getConfigurationValue('max_quality'))
+                , False)
             
         self.reportReadStats(preparedReadResults)
         self.recordAnalysisStep('Done calculating initial read stats')
@@ -566,7 +568,8 @@ class NanoporeProspectorMasterFrame(Frame):
                                 numberThreads = 4
                                 splitHeterozygotes = True
 
-                                myAlleleWrangler = AlleleWrangler(currentReadFilePath, currentAssemblyOutputDirectory, None, numberIterations, numberThreads, splitHeterozygotes)
+                                #_(self, readsFile, outputDir, referenceFile, numIters, numThreads, splitHeterozygotes, snps ):
+                                myAlleleWrangler = AlleleWrangler(currentReadFilePath, currentAssemblyOutputDirectory, None, numberIterations, numberThreads, splitHeterozygotes, None)
                                 currentAssemblyResults = myAlleleWrangler.analyzeReads()
                                 
                                 #Merge into completed results

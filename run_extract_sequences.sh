@@ -1,5 +1,7 @@
 source /home/ben/minionvenv/bin/activate
 
+cd /home/ben/Github/nanopore_prospector
+
 FullLengthSequenceList="/home/ben/ben_share/Christel/BC17.8394.fastq"
 GeneReference="/home/ben/ben_share/Christel/DRA_IMGT_Reference.fasta"
 python extract_sequences_main.py \

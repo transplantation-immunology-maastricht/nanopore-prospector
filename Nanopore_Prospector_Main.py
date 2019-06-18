@@ -22,6 +22,7 @@ from getopt import getopt, GetoptError
 from os.path import isfile, isdir, join
 
 from nanopore_prospector.Nanopore_Prospector_Master_Frame import NanoporeProspectorMasterFrame
+from nanopore_prospector.common import getDirectoryAlignmentStats
 from nit_picker.nit_picker import prepareReads
 from allele_wrangler.allele_wrangler import AlleleWrangler
 from Parse_IMGT_HLA.HLA_XML_to_fasta import parseImgtHla
@@ -36,6 +37,7 @@ def readArgs():
     global readInput
     global referenceInput
     global inputFile
+    global inputDirectory
     global outputDirectory
     global outputFile
     global analysisAction
@@ -46,10 +48,12 @@ def readArgs():
     global sampleID
     global barcodeFileLocation
     global snps
-    
+    global minimumSnpPctCutoff
+
     readInput                = None
     referenceInput           = None
     inputFile                = None
+    inputDirectory           = None
     outputDirectory          = None
     outputFile               = None
     analysisAction           = None
@@ -60,6 +64,7 @@ def readArgs():
     sampleID                 = None
     barcodeFileLocation      = None
     snps                     = None
+    minimumSnpPctCutoff    = None
 
     if(len(argv) < 3):
         print ('I don\'t think you have enough arguments.\n')
@@ -70,9 +75,9 @@ def readArgs():
     # https://www.tutorialspoint.com/python/python_command_line_arguments.htm
     try:
         opts, args = getopt(argv[1:]
-            ,"m:M:q:Q:hvb:I:i:o:O:r:R:t:a:s:S:"
-            ,["minlen=", "maxlen=", "minqual=", "maxqual=", "help", "version","barcode=", "iterations=", "inputfile="
-                ,"outputdirectory=","outputfile=","reads=","reference=",'threads=','action=', 'sampleid=', 'snps='])
+            ,"m:M:q:Q:hvb:I:i:o:O:r:R:t:a:s:S:p:"
+            ,["minlen=", "maxlen=", "minqual=", "maxqual=", "help", "version","barcode=", "inputfile=", "inputdirectory="
+                ,"outputdirectory=","outputfile=","reads=","reference=",'threads=','action=', 'sampleid=', 'snps=', 'snpcutoff='])
 
         print (str(len(opts)) + ' arguments found.')
 
@@ -109,10 +114,13 @@ def readArgs():
                 #print (SoftwareVersion)
                 referenceInput = arg
 
-            elif opt in ("-I", "--iterations"):
-                numberIterations = arg
+            # Potential bug: I just changed the -i and -I options to match the input/output file.
+            # This removes the --iterations option. Might need to addt hat again later.
+            # Might also cause a confusion between inputFile and inputDirectory. watch for that bug.
+            elif opt in ("-i", "--inputdirectory"):
+                inputDirectory = arg
 
-            elif opt in ("-i", "--inputfile"):
+            elif opt in ("-I", "--inputfile"):
                 inputFile = arg
 
             elif opt in ("-o", "--outputdirectory"):
@@ -126,6 +134,14 @@ def readArgs():
 
             elif opt in ("-s", "--sampleid"):
                 sampleID = arg
+
+            elif opt in ("-p", "--snpcutoff"):
+                # Why is it -p? polymorphism.
+                # This is a tuning parameter, I consider a SNP if the percent of mismatched/deleted is greater than the minimumSnpPctCutoff.
+                # So i would use something like .0000001 for consensus, or maybe .20 for minion reads.
+                minimumSnpPctCutoff = float(arg)
+                if (minimumSnpPctCutoff > 1 or minimumSnpPctCutoff < 0):
+                    raise Exception('minimumSnpPctCutoff is the minimum proportion of unmatching reads for a position to be considered polymorphic. It should be between 0 and 1.')
 
             elif opt in ("-S", "--snps"):
                 # A list of polymorphic positions for analysis. Used mainly (only?) in the heterozygous split.
@@ -188,7 +204,7 @@ if __name__=='__main__':
             # Just put the text into the text fields, that's probably easier?
             
             app.setInputDir(readInput, False)
-            app.setOutputDir(outputResultDirectory)
+            app.setOutputDir(outputDirectory)
             #app.inputDirectoryText.set(readInput)
             #app.outputDirectoryText.set(outputResultDirectory)
             #assignConfigurationValue('output_directory', self.outputDirectoryText.get())
@@ -198,6 +214,17 @@ if __name__=='__main__':
             
         else:
             raise Exception("Can not do a full analysis without a read input and output directory.")
+
+
+    elif(analysisAction=="preparereads"):
+        # Prepare reads and do simple statistics. Works for Reads or, potentially, HLA alleles from IPD, consensus sequences.
+        # If a reference file is provided, I can also calculate information on how polymorphic a region is.
+        print('Preparing Reads......')
+
+        prepareReads(readInput, outputDirectory, sampleID, barcodeFileLocation, referenceInput, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, True, minimumSnpPctCutoff)
+
+        print('Done.')
+
 
     elif(analysisAction=="heterosplit"):
 
@@ -243,7 +270,15 @@ if __name__=='__main__':
         print('Doing some SNP analysis now.')
 
         prepareReads(readInput, outputDirectory, sampleID, None, referenceInput,
-            minimumReadLength, maximumReadLength, minimumQuality, maximumQuality)
+            minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, True)
+
+
+    elif (analysisAction == "alignmentstatistics"):
+        # Search directory for .bam files and output a file with read coverage statistics.
+        pass
+        getDirectoryAlignmentStats(inputDirectory, outputFile, True)
+
+
 
     # TODO: Analysis Actions to add:
     # Splicing analysis.

@@ -20,33 +20,49 @@ source /home/ben/minionvenv/bin/activate
 # TODO: Giving a reference file instructs nitpicker to calculate read stats.
 # make CalculateReadStats a commandline option, which requires a reference sequence.
 
-python nit_picker_main.py \
- --reads="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_All_Features_A.fasta" \
- --outputdir="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/A_cDNA_Polymorphism_Analysis" \
- --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_A_Reference.fasta"
- 
-python nit_picker_main.py \
- --reads="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_All_Features_B.fasta" \
- --outputdir="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/B_cDNA_Polymorphism_Analysis" \
- --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_B_Reference.fasta"
- 
-python nit_picker_main.py \
- --reads="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_All_Features_C.fasta" \
- --outputdir="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/C_cDNA_Polymorphism_Analysis" \
- --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_C_Reference.fasta"
+cd /home/ben/Github/nanopore_prospector
 
-python nit_picker_main.py \
+
+python Nanopore_Prospector_Main.py \
+ --reads="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_Alleles_Combined_A.fasta" \
+ --outputdirectory="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/A_Polymorphism_Analysis_Combined" \
+ --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_A_Reference.fasta" \
+ --action="preparereads" \
+ --snpcutoff=".00000001"
+
+python Nanopore_Prospector_Main.py \
+ --reads="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_Alleles_Combined_B.fasta" \
+ --outputdirectory="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/B_Polymorphism_Analysis_Combined" \
+ --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_B_Reference.fasta" \
+ --action="preparereads" \
+ --snpcutoff=".00000001"
+
+python Nanopore_Prospector_Main.py \
+ --reads="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_Alleles_Combined_C.fasta" \
+ --outputdirectory="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/C_Polymorphism_Analysis_Combined" \
+ --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_C_Reference.fasta" \
+ --action="preparereads" \
+ --snpcutoff=".00000001"
+
+python Nanopore_Prospector_Main.py \
  --reads="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_Alleles_Full_Length_A.fasta" \
- --outputdir="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/A_Polymorphism_Analysis" \
- --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_A_Reference.fasta"
- 
-python nit_picker_main.py \
+ --outputdirectory="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/A_Polymorphism_Analysis_Full_Length" \
+ --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_A_Reference.fasta" \
+ --action="preparereads" \
+ --snpcutoff=".00000001"
+
+python Nanopore_Prospector_Main.py \
  --reads="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_Alleles_Full_Length_B.fasta" \
- --outputdir="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/B_Polymorphism_Analysis" \
- --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_B_Reference.fasta"
- 
-python nit_picker_main.py \
+ --outputdirectory="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/B_Polymorphism_Analysis_Full_Length" \
+ --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_B_Reference.fasta" \
+ --action="preparereads" \
+ --snpcutoff=".00000001"
+
+python Nanopore_Prospector_Main.py \
  --reads="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_Alleles_Full_Length_C.fasta" \
- --outputdir="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/C_Polymorphism_Analysis" \
- --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_C_Reference.fasta"
- 
+ --outputdirectory="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/C_Polymorphism_Analysis_Full_Length" \
+ --reference="/home/ben/Github/nanopore_prospector/HLA_Polymorphism_Analysis/HLA_C_Reference.fasta" \
+ --action="preparereads" \
+ --snpcutoff=".00000001"
+
+
