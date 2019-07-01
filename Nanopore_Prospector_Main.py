@@ -269,8 +269,7 @@ if __name__=='__main__':
     elif (analysisAction == "snpanalysis"):
         print('Doing some SNP analysis now.')
 
-        prepareReads(readInput, outputDirectory, sampleID, None, referenceInput,
-            minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, True)
+        prepareReads(readInput, outputDirectory, sampleID, None, referenceInput, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, True, minimumSnpPctCutoff)
 
 
     elif (analysisAction == "alignmentstatistics"):
