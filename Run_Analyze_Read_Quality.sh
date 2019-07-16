@@ -18,20 +18,15 @@
 
 source /home/ben/minionvenv/bin/activate
 
-ReadDirectory="/home/ben/Github/nanopore_prospector/33332_analyze_read_quality/A24_Reads"
-ResultsOutputDirectory="/home/ben/Github/nanopore_prospector/33332_analyze_read_quality/33332_A24_nitpicker_analysis"
+#ReadDirectory="/home/ben/Github/nanopore_prospector/33332_analyze_read_quality/A24_Reads"
+ReadFile="/home/ben/BensDRASequences/CleanedFromCsv.fasta"
+ResultsOutputDirectory="/home/ben/BensDRASequences/CheckingDRASNPResults"
 ReferenceFile="/home/ben/Github/nanopore_prospector/33332_analyze_read_quality/HLA_Reference_33332_A24.fasta"
 BarcodeFile="/home/ben/Github/nanopore_prospector/nit_picker/barcodes/barcodes_96_bc_kit.txt"
-
-
-
 
 python nanopore_prospector_main.py \
  --reads=$ReadDirectory \
  --outputdir=$ResultsOutputDirectory \
  --reference=$ReferenceFile \
- --minqual=34 \
- --minlen=3100 \
- --maxlen=3300 \
   --action="snpanalysis"
 

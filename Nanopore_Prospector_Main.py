@@ -30,6 +30,7 @@ from find_homopolymers.find_homopolymers import findHomopolymers
 from convert_reads.convert_reads import fastqToFasta
 from combine_snps.consensus_from_snp_table import consensusSequenceFromSNPFiles
 from combine_snps.name_novels import nameNovels
+from combine_DP_region.combine_DP_region import combineDPSequences
 
 def readArgs():
     # Trying to be consistent and global with my parameter inputs.
@@ -269,8 +270,7 @@ if __name__=='__main__':
     elif (analysisAction == "snpanalysis"):
         print('Doing some SNP analysis now.')
 
-        prepareReads(readInput, outputDirectory, sampleID, None, referenceInput,
-            minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, True)
+        prepareReads(readInput, outputDirectory, sampleID, None, referenceInput, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, True, minimumSnpPctCutoff)
 
 
     elif (analysisAction == "alignmentstatistics"):
@@ -340,6 +340,22 @@ if __name__=='__main__':
 
         # TODO: Sanity Checks on required inputs
         parseImgtHla(inputFile, outputDirectory)
+
+    elif (analysisAction == 'combinedpsequences'):
+        # This is a specific analysis to combine
+
+        # -i / --inputfile
+        #   A fasta file containing, in this exact order:
+        #   DP region reference.
+        #   DPA1 sequence 5'-3' (I will reverse complement the sequence.)
+        #   DPB1 sequence 5'-3'
+        #   Promoter sequence 5'-3'
+        # -o / --outputdirectory
+        #   I write a few intermediate and result files in there.
+        print('Combining DP sequences from the fasta file:\n' + str(inputFile) + '\nand write results to:\n' + str(outputDirectory))
+
+        # TODO: Sanity Checks on required inputs
+        combineDPSequences(inputFile, outputDirectory)
 
     elif (analysisAction is None or analysisAction == ''):
         # Start the main GUI, so we can do some analysis steps.
