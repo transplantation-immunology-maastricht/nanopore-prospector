@@ -31,6 +31,7 @@ from convert_reads.convert_reads import fastqToFasta
 from combine_snps.consensus_from_snp_table import consensusSequenceFromSNPFiles
 from combine_snps.name_novels import nameNovels
 from combine_DP_region.combine_DP_region import combineDPSequences
+from combine_snps.find_files_with_pattern import combineFastaFiles, collectFilesWithPattern, removeDuplicates
 
 def readArgs():
     # Trying to be consistent and global with my parameter inputs.
@@ -50,6 +51,7 @@ def readArgs():
     global barcodeFileLocation
     global snps
     global minimumSnpPctCutoff
+    global filePattern
 
     readInput                = None
     referenceInput           = None
@@ -65,7 +67,8 @@ def readArgs():
     sampleID                 = None
     barcodeFileLocation      = None
     snps                     = None
-    minimumSnpPctCutoff    = None
+    minimumSnpPctCutoff      = None
+    filePattern              = None
 
     if(len(argv) < 3):
         print ('I don\'t think you have enough arguments.\n')
@@ -76,9 +79,9 @@ def readArgs():
     # https://www.tutorialspoint.com/python/python_command_line_arguments.htm
     try:
         opts, args = getopt(argv[1:]
-            ,"m:M:q:Q:hvb:I:i:o:O:r:R:t:a:s:S:p:"
+            ,"m:M:q:Q:hvb:I:i:o:O:r:R:t:a:s:S:p:P:"
             ,["minlen=", "maxlen=", "minqual=", "maxqual=", "help", "version","barcode=", "inputfile=", "inputdirectory="
-                ,"outputdirectory=","outputfile=","reads=","reference=",'threads=','action=', 'sampleid=', 'snps=', 'snpcutoff='])
+                ,"outputdirectory=","outputfile=","reads=","reference=",'threads=','action=', 'sampleid=', 'snps=', 'snpcutoff=', 'pattern='])
 
         print (str(len(opts)) + ' arguments found.')
 
@@ -143,6 +146,9 @@ def readArgs():
                 minimumSnpPctCutoff = float(arg)
                 if (minimumSnpPctCutoff > 1 or minimumSnpPctCutoff < 0):
                     raise Exception('minimumSnpPctCutoff is the minimum proportion of unmatching reads for a position to be considered polymorphic. It should be between 0 and 1.')
+
+            elif opt in ("-P", "--pattern"):
+                filePattern = arg
 
             elif opt in ("-S", "--snps"):
                 # A list of polymorphic positions for analysis. Used mainly (only?) in the heterozygous split.
@@ -310,7 +316,16 @@ if __name__=='__main__':
         print('The main method is in extract_sequences_main.py, move it here.')
 
     elif (analysisAction == 'findfiles'):
-        print('The main method is in find_files_main.py, move it here.')
+        collectFilesWithPattern(inputDirectory, outputDirectory, filePattern)
+
+    elif(analysisAction == 'combinefastafiles'):
+        #print('This method works similary to collectFilesWithPattern, but specific for making a fasta file.')
+        combineFastaFiles(inputDirectory, outputDirectory, filePattern)
+
+    elif (analysisAction == 'removeduplicates'):
+        # print('This method works similary to collectFilesWithPattern, but specific for making a fasta file.')
+        removeDuplicates(inputFile, outputFile)
+
 
     elif (analysisAction == 'namenovels'):
         nameNovels(referenceInput, inputFile, outputDirectory)
@@ -342,7 +357,7 @@ if __name__=='__main__':
         parseImgtHla(inputFile, outputDirectory)
 
     elif (analysisAction == 'combinedpsequences'):
-        # This is a specific analysis to combine
+        # This is a specific analysis to combine DPA1, Promoter, DPB1 sequences from 3 amplicons.
 
         # -i / --inputfile
         #   A fasta file containing, in this exact order:

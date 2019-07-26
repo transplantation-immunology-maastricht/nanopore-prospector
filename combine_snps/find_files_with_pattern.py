@@ -4,15 +4,27 @@ from os import makedirs, system, listdir, walk
 from Bio.Seq import Seq
 from Bio.SeqIO import write, parse
 
+from nanopore_prospector.common import createOutputFile
+
 from shutil import copyfile
 
+
+def removeDuplicates(inputFasta, outputFasta):
+    print('Removing Duplicates from ' + str(inputFasta))
+
+    recordsNoDuplicates = {}
+
+    for record in parse(inputFasta, 'fasta'):
+        # Use the sequence as the key, overwrite with some id.
+        recordsNoDuplicates[str(record.seq)] = str(record.id)
+
+    outputFile = createOutputFile(outputFasta)
+    for recordKey in recordsNoDuplicates.keys():
+        outputFile.write('>' + recordsNoDuplicates[recordKey] + '\n' + recordKey + '\n')
 
 
 # TODO: this method should actually be called "combine fasta files" or something. I want to have a method to just put files with a simliar pattern in the same directory.
 def combineFastaFiles(inputDirectory, outputDirectory, pattern):
-    # This method extracts a specific sequence from a larger amplicon.
-    # For example, we are extracting the HLA-DRA coding sequence from our DRA amplicon.
-
     seqObjects = []
 
     print('I am inside extract sequences method.')
@@ -32,7 +44,7 @@ def combineFastaFiles(inputDirectory, outputDirectory, pattern):
                 print('This is the file we are looking for: ' + relativePath)
 
                 for record in parse(fullPath, "fasta"):
-                    record.id = relativePath.replace('/', '_').replace('\\', '_')
+                    record.id = record.id + ' ' + relativePath.replace('/', '_').replace('\\', '_')
                     record.description = ''
 
                     seqObjects.append(record)
@@ -84,13 +96,4 @@ def collectFilesWithPattern(inputDirectory, outputDirectory, pattern):
     #outputFile = createOutputFile(outputFileName)
     #write(seqObjects, outputFile, 'fasta')
     #outputFile.close()
-
-
-def createOutputFile(outputfileName):
-    tempDir, tempFilename = split(outputfileName)
-    if not isdir(tempDir):
-        print('Making Directory:' + tempDir)
-        makedirs(tempDir)
-    resultsOutput = open(outputfileName, 'w')
-    return resultsOutput     
 

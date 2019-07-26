@@ -10,4 +10,4 @@ python Nanopore_Prospector_Main.py \
  --inputdirectory=$InputDirectory \
  --outputdirectory=$OutputDirectory \
  --pattern=$Pattern \
- --action="findfiles"
+ --action="combinefastafiles"

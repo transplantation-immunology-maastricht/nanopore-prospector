@@ -445,6 +445,8 @@ class MinionReadCollection:
         # TODO: I made minimumSnpPctCutoff a parameter. What will break?
         # expectedMatchingBaseAccuracy is the inverse of the minimumSnpPctCutoff. It's a measure of "accuracy", not a
         # minimum polymorphism amount.
+        if minimumSnpPctCutoff is None:
+            minimumSnpPctCutoff = .00001
         expectedMatchingBaseAccuracy = (1-minimumSnpPctCutoff)
 
         alignedReads = self.alignedReadCountsByPosition[referencePositionZeroBased]
