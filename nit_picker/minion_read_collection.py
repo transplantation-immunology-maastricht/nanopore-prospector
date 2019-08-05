@@ -235,31 +235,236 @@ class MinionReadCollection:
 
         polymorphicAllelesOutputFile.close()
 
-    def writeLDMatrix(self, ldMatrixFilename):
-
-        # The level of linkage disequilibrium between A and B can be quantified by the coefficient of linkage disequilibrium {\displaystyle D_{AB}} D_{AB}, which is defined as
-        # D_{AB}=p_{AB}-p_{A}p_{B},
-        # https://en.wikipedia.org/wiki/Linkage_disequilibrium
-        # In the case {D_{{AB}}=0, said to be in linkage equilibrium
+    def writeLDMatrix(self, outputDirectory):
         print ('Writing a Linkage Disequilibrium Matrix')
 
         # Quick way to identify the polymorphic positions
         # TODO I already did this in writePolymorphicAlleles, maybe I can store it and reuse.
-        distinctAlleleNames = sorted(self.alleleSpecificPolymorphisms.keys())
+        distinctAlignedSeqNames = sorted(self.alleleSpecificPolymorphisms.keys())
         distinctPolymorphicPositions = []
-        for alleleName in distinctAlleleNames:
+        for alleleName in distinctAlignedSeqNames:
             for positionZeroBased in self.alleleSpecificPolymorphisms[alleleName].keys():
                 if positionZeroBased not in distinctPolymorphicPositions:
                     distinctPolymorphicPositions.append(positionZeroBased)
         distinctPolymorphicPositions = sorted(distinctPolymorphicPositions)
 
-        # ldMatrixUnscaled=[len(distinctPolymorphicPositions) , len(distinctPolymorphicPositions)]
-        ldMatrixUnscaled = [[0 for x in range(len(distinctPolymorphicPositions))] for y in
+        # Create LD Matrix, and write it out.
+        asymmetricLdMatrix, symmetricLdMatrix = self.calculateLinkDiseqMatrices(distinctPolymorphicPositions, distinctAlignedSeqNames)
+        asymmetricLdMatrixOutputFile = createOutputFile(join(outputDirectory, 'AsymmetricLDMatrix.csv'))
+        symmetricLdMatrixOutputFile = createOutputFile(join(outputDirectory, 'SymmetricLDMatrix.csv'))
+        # Use 1-based positions.
+        for positionZeroBased in distinctPolymorphicPositions:
+            asymmetricLdMatrixOutputFile.write(',' + str(positionZeroBased + 1))
+            symmetricLdMatrixOutputFile.write(',' + str(positionZeroBased + 1))
+        asymmetricLdMatrixOutputFile.write('\n')
+        symmetricLdMatrixOutputFile.write('\n')
+
+
+        for snpYIndex, snpYPosition in enumerate(distinctPolymorphicPositions):
+            asymmetricLdMatrixOutputFile.write(str(snpYPosition + 1))
+            symmetricLdMatrixOutputFile.write(str(snpYPosition + 1))
+
+            for snpXIndex, snpXPosition in enumerate(distinctPolymorphicPositions):
+                asymmetricLdMatrixOutputFile.write(',' + str(round(asymmetricLdMatrix[snpXIndex][snpYIndex], 2)))
+                symmetricLdMatrixOutputFile.write(',' + str(round(symmetricLdMatrix[snpXIndex][snpYIndex], 2)))
+
+            asymmetricLdMatrixOutputFile.write('\n')
+            symmetricLdMatrixOutputFile.write('\n')
+
+        asymmetricLdMatrixOutputFile.close()
+        symmetricLdMatrixOutputFile.close()
+
+
+    def calculateLinkDiseqMatrices(self, distinctPolymorphicPositions, distinctAlignedSeqNames):
+        # I'm referring to this paper:
+        # https://www.genetics.org/content/198/1/321
+        # I'm switching to a asymmetric LD constant.
+
+        asymmetricLDMatrix = [[0 for x in range(len(distinctPolymorphicPositions))] for y in
                             range(len(distinctPolymorphicPositions))]
 
+        symmetricWnMatrix = [[0 for x in range(len(distinctPolymorphicPositions))] for y in
+                              range(len(distinctPolymorphicPositions))]
+
+        # Step 1 is to calculate a list of possible snps/alleles for each position.
+        # This structure is so I can loop over possible values of alleles at a position, and so I can compare phased SNPs.
+        uniqueAllelesPerPosition = {}
+        allelesPerPositionPerAlignedSeq = {}
+        for snpIndex, snpPosition in enumerate(distinctPolymorphicPositions):
+            if (snpIndex % 100 == 0):
+                print('Step 1. calculating Unique SNPs at position # (' + str(snpIndex) + '/' + str(len(distinctPolymorphicPositions)) + ')')
+
+            uniqueAllelesPerPosition[snpPosition] = []
+            allelesPerPositionPerAlignedSeq[snpPosition] = {}
+
+            for alignedSeqName in distinctAlignedSeqNames:
+
+                if (snpPosition in self.alleleSpecificPolymorphisms[alignedSeqName].keys()):
+                    currentSNP = self.alleleSpecificPolymorphisms[alignedSeqName][snpPosition]
+                else:
+                    # If the SNP doesn't exist, I assume it's the reference value.
+                    # Todo: This might not always be true. It might be that there isn't a sequence aligned at this position and we don't see the SNP.
+                    currentSNP = self.referenceSequence[snpPosition]
+
+                allelesPerPositionPerAlignedSeq[snpPosition][alignedSeqName] = currentSNP
+                if (currentSNP not in uniqueAllelesPerPosition[snpPosition]):
+                    uniqueAllelesPerPosition[snpPosition].append(currentSNP)
+
+            #print('At 1-based position ' + str(snpPosition + 1) + ' I can see ' + str(len(uniqueSNPsPerPosition[snpPosition])) + ' SNPS:' + str(uniqueSNPsPerPosition[snpPosition]))
+            #print(str)
+
+
+        # Step 2... Calculate Allele and Haplotype Frequencies.
+        frequenciesPerPositionPerAllele = {}
+        haplotypeFrequenciesPerPositionsPerAlleles = {}
+        for snpAIndex, snpAPosition in enumerate(distinctPolymorphicPositions):
+
+            # Progress bar...
+            if(snpAIndex % 100 == 0):
+                print('Step 2. calculating SNP & Haplotype Frequencies for SNP# (' + str(snpAIndex) + '/' + str(len(distinctPolymorphicPositions)) + ')')
+
+            # Allele Frequencies...
+            frequenciesPerPositionPerAllele[snpAPosition] = {}
+            for currentSNPValueI in uniqueAllelesPerPosition[snpAPosition]:
+                alleleFrequencyAI = 0
+                for alignedSeqName in distinctAlignedSeqNames:
+                    if allelesPerPositionPerAlignedSeq[snpAPosition][alignedSeqName] == currentSNPValueI:
+                        alleleFrequencyAI += 1
+                frequenciesPerPositionPerAllele[snpAPosition][currentSNPValueI] = alleleFrequencyAI / len(distinctAlignedSeqNames)
+
+            # Haplotype Frequencies...
+            haplotypeFrequenciesPerPositionsPerAlleles[snpAPosition] = {}
+            for snpBIndex, snpBPosition in enumerate(distinctPolymorphicPositions):
+                haplotypeFrequenciesPerPositionsPerAlleles[snpAPosition][snpBPosition] = {}
+                for currentSNPValueI in uniqueAllelesPerPosition[snpAPosition]:
+                    haplotypeFrequenciesPerPositionsPerAlleles[snpAPosition][snpBPosition][currentSNPValueI] = {}
+                    for currentSNPValueJ in uniqueAllelesPerPosition[snpBPosition]:
+                        haplotypeFrequency = 0
+                        for alignedSeqName in distinctAlignedSeqNames:
+                            if (allelesPerPositionPerAlignedSeq[snpAPosition][alignedSeqName] == currentSNPValueI
+                                and allelesPerPositionPerAlignedSeq[snpBPosition][alignedSeqName] == currentSNPValueJ):
+                                haplotypeFrequency += 1
+                        haplotypeFrequenciesPerPositionsPerAlleles[snpAPosition][snpBPosition][currentSNPValueI][currentSNPValueJ] = haplotypeFrequency / len(distinctAlignedSeqNames)
+
+
+
+        # Step 3... Loop through snps in 2d array, calculate LD positions, write position in first column.
+        for snpAIndex, snpAPosition in enumerate(distinctPolymorphicPositions):
+
+            # Progress bar...
+            if(snpAIndex % 100 == 0):
+                print('Step 3. calculating asymmetric linkage constants for SNP# (' + str(snpAIndex) + '/' + str(len(distinctPolymorphicPositions)) + ')')
+
+            # Loop through snps, write LD calculation in corresponding column.
+            for snpBIndex, snpBPosition in enumerate(distinctPolymorphicPositions):
+                if (snpBPosition == snpAPosition):
+                    asymmetricLDMatrix[snpAIndex][snpBIndex] = 0
+
+                else:
+                    # Asymmetric Linkage Disequlibrium
+                    # W^2 (a/b) = [ Sum(i) Sum(j) ( D^2(ij) / p(Bj) ) ] / (1-FA)
+
+                    # Calculate FA, the homozygosity constant?
+                    # 1 - [Sum(i) (PAi^2)]
+
+                    linkageSum = 0
+                    homozygositySum = 0
+                    #loop each possible SNP value
+                    for currentSNPValueI in uniqueAllelesPerPosition[snpAPosition]:
+
+                        homozygositySum += (frequenciesPerPositionPerAllele[snpAPosition][currentSNPValueI]) ** 2
+
+                        for currentSNPValueJ in uniqueAllelesPerPosition[snpBPosition]:
+                            # calculate the D^2 value, add it to the sum
+                            # ( D^2(ij) / p(Bj) )
+
+                            # Dij = fij - pAi * pBj
+                            DStatisticSquared = (haplotypeFrequenciesPerPositionsPerAlleles[snpAPosition][snpBPosition][currentSNPValueI][currentSNPValueJ]
+                                - (frequenciesPerPositionPerAllele[snpAPosition][currentSNPValueI]
+                                * frequenciesPerPositionPerAllele[snpBPosition][currentSNPValueJ])
+                                )**2
+                            # The squared D stat is divided by PBj and added to the sum
+                            linkageSum += (DStatisticSquared / frequenciesPerPositionPerAllele[snpBPosition][currentSNPValueJ])
+
+
+                    heterozygosityConstant = 1 - homozygositySum
+
+                    # Divide Sum by (1/FA)
+                    ldValue = linkageSum / (heterozygosityConstant)
+                    asymmetricLDMatrix[snpAIndex][snpBIndex] = ldValue
+
+        # Step 4... Loop through snps in 2d array, calculate symmetric Wn values.
+        for snpAIndex, snpAPosition in enumerate(distinctPolymorphicPositions):
+
+            # Progress bar...
+            if (snpAIndex % 100 == 0):
+                print('Step 4. calculating symmetric Wn linkage constants for SNP# (' + str(snpAIndex) + '/' + str(
+                    len(distinctPolymorphicPositions)) + ')')
+
+            # Loop through snps, write LD calculation in corresponding column.
+            for snpBIndex, snpBPosition in enumerate(distinctPolymorphicPositions):
+                if (snpBPosition == snpAPosition):
+                    symmetricWnMatrix[snpAIndex][snpBIndex] = 0
+
+                # Symmsetric, to reduce redundancy we don't need to calculate every pair in both directions.
+                elif( snpBPosition > snpAPosition):
+                    #Wn2 is the multi-alleleic extension of the r2 measure.
+                    #Wn2 = [ Sum(i) Sum(j) ( D^2(ij) / (pAi * pBj))  ] / min((kA - 1, kB - 1))
+
+                    linkageSum = 0
+                    # loop each possible SNP value
+                    for currentSNPValueI in uniqueAllelesPerPosition[snpAPosition]:
+
+
+                        for currentSNPValueJ in uniqueAllelesPerPosition[snpBPosition]:
+                            # calculate the D^2 value, add it to the sum
+                            #(D ^ 2(ij) / (pAi * pBj))
+
+                            # Dij = fij - pAi * pBj
+                            DStatisticSquared = (haplotypeFrequenciesPerPositionsPerAlleles[snpAPosition][snpBPosition][
+                                     currentSNPValueI][currentSNPValueJ]
+                                 - (frequenciesPerPositionPerAllele[snpAPosition][currentSNPValueI]
+                                    * frequenciesPerPositionPerAllele[snpBPosition][currentSNPValueJ])
+                                 ) ** 2
+                            # The squared D stat is divided by PBj and added to the sum
+                            linkageSum += (DStatisticSquared /
+                                (frequenciesPerPositionPerAllele[snpBPosition][currentSNPValueJ]
+                                *frequenciesPerPositionPerAllele[snpAPosition][currentSNPValueI])
+                                )
+
+                    # The entire sum is divided by min((kA - 1, kB - 1))
+                    # Those are degrees of freedom. The kA and kB are the numbers of alleles at each locus.
+                    degreesOfFreedom = min(
+                        len(uniqueAllelesPerPosition[snpAPosition]) - 1
+                        , len(uniqueAllelesPerPosition[snpBPosition]) - 1
+                    )
+
+                    ldValue = linkageSum / degreesOfFreedom
+
+                    symmetricWnMatrix[snpAIndex][snpBIndex] = ldValue
+                    symmetricWnMatrix[snpBIndex][snpAIndex] = ldValue
+
+                else:
+                    pass
+                    #print('snpBPosition(' + str(snpBPosition) + ') <= snpAPosition(' + str(snpAPosition) + '). This is fine, im just not calculating it again.')
+
+
+        return asymmetricLDMatrix, symmetricWnMatrix
+
+
+    def calculateDPrimeLDMatrix(self, distinctPolymorphicPositions):
+        # TODO: I know this method is faulty. It treats each SNP as bi-allelic. Either it's a perfect match, or not.
+        # TODO: I'm deprecating this method and switching to the asymmetric LD measure matrix.
+        # I'm switching to a asymmetric LD constant, look in the other method.
+        # ldMatrixUnscaled=[len(distinctPolymorphicPositions) , len(distinctPolymorphicPositions)]
+        # The level of linkage disequilibrium between A and B can be quantified by the coefficient of linkage disequilibrium {\displaystyle D_{AB}} D_{AB}, which is defined as
+        # D_{AB}=p_{AB}-p_{A}p_{B},
+        # https://en.wikipedia.org/wiki/Linkage_disequilibrium
+        # In the case {D_{{AB}}=0, said to be in linkage equilibrium
+        ldMatrixUnscaled = [[0 for x in range(len(distinctPolymorphicPositions))] for y in
+                            range(len(distinctPolymorphicPositions))]
         # Maximum value for scaling?
         maxLDValue = 0
-
         # Loop through snps in 2d array, calculate LD positions, write position in first column.
         for snpYIndex, snpYPosition in enumerate(distinctPolymorphicPositions):
 
@@ -277,6 +482,10 @@ class MinionReadCollection:
                     # D{AB} = p{AB} - p{A} * p{B}
                     # Define the allele as sequences that matches the reference.
                     # Any insert/delete/mismatch is treated as the "other" allele.
+
+                    # TODO: This is a multi-allelic loci. Should I instead be calculating Wn, instead of D?
+                    # This way, it's either match, or everything else.
+                    # A match is an allele, a deletion is an allele.
 
                     # p{A}
                     pA = 1.0 * self.matchReadCountsByPosition[snpYPosition] / self.alignedReadCountsByPosition[
@@ -318,34 +527,14 @@ class MinionReadCollection:
                     pass
 
             # ldMatrixOutputFile.write('\n')
-
         # Scale the LD values.
         ldMatrixScaled = [[0 for x in range(len(distinctPolymorphicPositions))] for y in
                           range(len(distinctPolymorphicPositions))]
         # ldMatrixScaled=[len(distinctPolymorphicPositions) , len(distinctPolymorphicPositions)]
-
         for snpYIndex, snpYPosition in enumerate(distinctPolymorphicPositions):
             for snpXIndex, snpXPosition in enumerate(distinctPolymorphicPositions):
                 ldMatrixScaled[snpXIndex][snpYIndex] = ldMatrixUnscaled[snpXIndex][snpYIndex] / maxLDValue
-
-        # Write calculated LD values to matrix file.
-        ldMatrixOutputFile = createOutputFile(ldMatrixFilename)
-
-        # Loop through snps, write their positions on the first row.  Skip one.
-        # Use 1-based positions.
-        for positionZeroBased in distinctPolymorphicPositions:
-            ldMatrixOutputFile.write(',' + str(positionZeroBased + 1))
-        ldMatrixOutputFile.write('\n')
-
-        for snpYIndex, snpYPosition in enumerate(distinctPolymorphicPositions):
-            ldMatrixOutputFile.write(str(snpYPosition + 1))
-
-            for snpXIndex, snpXPosition in enumerate(distinctPolymorphicPositions):
-                ldMatrixOutputFile.write(',' + str(round(ldMatrixScaled[snpXIndex][snpYIndex], 2)))
-
-            ldMatrixOutputFile.write('\n')
-
-        ldMatrixOutputFile.close()
+        return ldMatrixScaled
 
     def writeAlignmentSummaryHeader(self, alignmentSummaryOutputFile):
         return alignmentSummaryOutputFile.write(
@@ -875,7 +1064,7 @@ class MinionReadCollection:
         self.createSlidingScaleAlignmentQualityGraph(
             join(alignmentOutputDir, 'SlidingScaleAlignmentQuality.png'))
         # TODO: I commented this part out because it takes X^2 amount of time.
-        # self.writeLDMatrix(join(alignmentOutputDir, 'LDMatrix.csv'))
+        self.writeLDMatrix(alignmentOutputDir)
 
         # Loop in the opposite direction, read-by-read then position by position.
         # That loop is more clear for analyzing individual read quality

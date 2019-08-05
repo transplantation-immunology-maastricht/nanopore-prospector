@@ -72,8 +72,8 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
             allReads.concatenate(newReads)
             
     else :
-        print('I expect a .fasta or .fastq format for read input. Alternatively, specify a directory containing read inputs. Please check your input.')
-        raise Exception('Bad Read Input Format')
+        print('Please check your input:' + str(inputReads) +'\n it doesnt seem to be a valid file or directory')
+        raise Exception('Bad Read Input')
     
     print ('Total # of allReads found = ' + str(len(allReads.readCollection)))
 
