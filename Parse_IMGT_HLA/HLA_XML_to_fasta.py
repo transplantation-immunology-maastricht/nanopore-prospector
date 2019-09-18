@@ -602,7 +602,7 @@ def createFeatureReferences(alleleFullList, outputDirectory):
         for index, alleleGroup in enumerate(combinedAlleleGroups):
             print('(' + str(index + 1) + '/' + str(len(combinedAlleleGroups)) + '): ' + alleleGroup.FileName)
 
-            outputGroupFileName = join(featureReferenceOutputDirectory, alleleGroup.FileName)
+            outputGroupFileName = join(featureReferenceOutputDirectory, alleleGroup.FileName.replace('.fasta','_'+shortFeatureName + '.fasta'))
 
             printFasta(alleleGroup.Alleles, outputGroupFileName, False, False, False)
 
@@ -611,10 +611,10 @@ def createAllelesSplitByFeatureReference(alleleFullList, outputDirectory):
     # I'm currently modifying this method to put every feature I know of in a single file.
     # Sorted first by allele name, then by feature.
 
-    input("Breakpoint for creating alleles split by reference sequence")
+    #input("Breakpoint for creating alleles split by reference sequence")
 
     featuresList = ['5\' UTR',
-        'Exon 1', 'Intron 1', 'Exon 2', 'Intron 2', 'Exon 3', 'Intron 3', 'Exon 4', 'Intron 4', 'Exon 5', 'Intron 5', 'Exon 6', 'Intron 6', 'Exon 7', 'Exon 8','Intron 7'
+        'Exon 1', 'Intron 1', 'Exon 2', 'Intron 2', 'Exon 3', 'Intron 3', 'Exon 4', 'Intron 4', 'Exon 5', 'Intron 5', 'Exon 6', 'Intron 6', 'Exon 7','Intron 7', 'Exon 8'
         , '3\' UTR'
         ]
 
@@ -638,7 +638,7 @@ def createAllelesSplitByFeatureReference(alleleFullList, outputDirectory):
 
     printFasta(featuresByAllele, outputFeatureFileName, False, False, False)
 
-    input("Breakpoint After creating alleles split by reference sequence")
+    #input("Breakpoint After creating alleles split by reference sequence")
 
 
 

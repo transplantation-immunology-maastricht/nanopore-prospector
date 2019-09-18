@@ -130,7 +130,6 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
     # A good idea: TODO: make MinionReadCollection keep track of reads that are rejected for Length, and Quality.
     readStats = {}
 
-
     # Output Reads
     # TODO: A potential problem. I'm passing a "minimum read length" as a "minimum alignment length"
     # TODO: I divided it by 2, to help ensure the data will map. Relatively untested.
@@ -141,8 +140,7 @@ def prepareReads(inputReads, outputDirectory, sampleID, barcodeFileLocation, ref
 
     if(len(allReads.readCollection)>0):
         readStats['all_reads'] = allReads.outputReadPlotsAndSimpleStats(outputDirectory, 'All', sampleID, referenceFileLocation, calculateReadStatistics, minimumReadLength / 2, minimumSnpPctCutoff)
-      
-    
+
     # If Pass reads are not the same size as All reads, 
     # We must print the rejected reads, and the pass reads as well.   
     if(len(allReads.readCollection) != len(passReadCollection.readCollection)):
