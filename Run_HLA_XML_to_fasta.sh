@@ -15,7 +15,7 @@
 
 source /home/ben/minionvenv/bin/activate
 
-InputFile="/home/ben/Github/nanopore_prospector/Sample_Data/input/hla_xml.3.36.0/hla.xml"
+InputFile="/home/ben/Github/nanopore_prospector/Sample_Data/input/hla_xml.3.37.0/hla.xml"
 OutputDirectory="/home/ben/Github/nanopore_prospector/Sample_Data/output/hla_alleles"
 
 python Nanopore_Prospector_Main.py \

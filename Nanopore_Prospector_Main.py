@@ -228,7 +228,7 @@ if __name__=='__main__':
         # If a reference file is provided, I can also calculate information on how polymorphic a region is.
         print('Preparing Reads......')
 
-        prepareReads(readInput, outputDirectory, sampleID, barcodeFileLocation, referenceInput, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, True, minimumSnpPctCutoff)
+        prepareReads(readInput, outputDirectory, sampleID, barcodeFileLocation, referenceInput, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, False, minimumSnpPctCutoff)
 
         print('Done.')
 

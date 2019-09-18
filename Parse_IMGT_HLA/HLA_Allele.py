@@ -79,104 +79,104 @@ class HLA_Allele:
 
     # TODO: Pass these variables in a smarter way, two booleans doesn't make sense.
     def getFastaHeader(self, printAPDSequences, printIntronSequences, printFullLenMinusUTRs):
-        currentFastaHeader = self.alleleName + ' ('
+        currentFastaHeader = self.alleleName + '_('
 
 
         if(printAPDSequences):
             if('Exon 2' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX2, ')
+                currentFastaHeader += ('EX2,')
             if('Intron 2' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN2, ')
+                currentFastaHeader += ('IN2,')
             if('Exon 3' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX3, ')
+                currentFastaHeader += ('EX3,')
 
         elif(printIntronSequences):
-            #if('5\' UTR' in self.featuresInFullSequence):
-            #    currentFastaHeader += ('5UTR, ')
+            if('5\' UTR' in self.featuresInFullSequence):
+                currentFastaHeader += ('5UTR,')
             if('Intron 1' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN1, ')
+                currentFastaHeader += ('IN1,')
             if('Intron 2' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN2, ')
+                currentFastaHeader += ('IN2,')
             if('Intron 3' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN3, ')
+                currentFastaHeader += ('IN3,')
             if('Intron 4' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN4, ')
+                currentFastaHeader += ('IN4,')
             if('Intron 5' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN5, ')
+                currentFastaHeader += ('IN5,')
             if('Intron 6' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN6, ')
+                currentFastaHeader += ('IN6,')
             if('Intron 7' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN7, ')
-            #if('3\' UTR' in self.featuresInFullSequence):
-            #    currentFastaHeader += ('3UTR, ')
+                currentFastaHeader += ('IN7,')
+            if('3\' UTR' in self.featuresInFullSequence):
+                currentFastaHeader += ('3UTR,')
 
         elif(printFullLenMinusUTRs):
             if('Exon 1' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX1, ')
+                currentFastaHeader += ('EX1,')
             if('Intron 1' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN1, ')
+                currentFastaHeader += ('IN1,')
             if('Exon 2' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX2, ')
+                currentFastaHeader += ('EX2,')
             if('Intron 2' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN2, ')
+                currentFastaHeader += ('IN2,')
             if('Exon 3' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX3, ')
+                currentFastaHeader += ('EX3,')
             if('Intron 3' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN3, ')
+                currentFastaHeader += ('IN3,')
             if('Exon 4' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX4, ')
+                currentFastaHeader += ('EX4,')
             if('Intron 4' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN4, ')
+                currentFastaHeader += ('IN4,')
             if('Exon 5' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX5, ')
+                currentFastaHeader += ('EX5,')
             if('Intron 5' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN5, ')
+                currentFastaHeader += ('IN5,')
             if('Exon 6' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX6, ')
+                currentFastaHeader += ('EX6,')
             if('Intron 6' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN6, ')
+                currentFastaHeader += ('IN6,')
             if('Exon 7' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX7, ')
+                currentFastaHeader += ('EX7,')
             if('Intron 7' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN7, ')
+                currentFastaHeader += ('IN7,')
             if('Exon 8' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX8, ')
+                currentFastaHeader += ('EX8,')
 
         else:
             if('5\' UTR' in self.featuresInFullSequence):
-                currentFastaHeader += ('5UTR, ')
+                currentFastaHeader += ('5UTR,')
             if('Exon 1' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX1, ')
+                currentFastaHeader += ('EX1,')
             if('Intron 1' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN1, ')
+                currentFastaHeader += ('IN1,')
             if('Exon 2' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX2, ')
+                currentFastaHeader += ('EX2,')
             if('Intron 2' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN2, ')
+                currentFastaHeader += ('IN2,')
             if('Exon 3' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX3, ')
+                currentFastaHeader += ('EX3,')
             if('Intron 3' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN3, ')
+                currentFastaHeader += ('IN3,')
             if('Exon 4' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX4, ')
+                currentFastaHeader += ('EX4,')
             if('Intron 4' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN4, ')
+                currentFastaHeader += ('IN4,')
             if('Exon 5' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX5, ')
+                currentFastaHeader += ('EX5,')
             if('Intron 5' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN5, ')
+                currentFastaHeader += ('IN5,')
             if('Exon 6' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX6, ')
+                currentFastaHeader += ('EX6,')
             if('Intron 6' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN6, ')
+                currentFastaHeader += ('IN6,')
             if('Exon 7' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX7, ')
+                currentFastaHeader += ('EX7,')
             if('Intron 7' in self.featuresInFullSequence):
-                currentFastaHeader += ('IN7, ')
+                currentFastaHeader += ('IN7,')
             if('Exon 8' in self.featuresInFullSequence):
-                currentFastaHeader += ('EX8, ')
+                currentFastaHeader += ('EX8,')
             if('3\' UTR' in self.featuresInFullSequence):
-                currentFastaHeader += ('3UTR, ')
+                currentFastaHeader += ('3UTR,')
 
         # Don't mess with sorting. Just check for each feature, it's easy enough.
         # if(not printAPDSequences):
@@ -218,7 +218,7 @@ class HLA_Allele:
         #     if('3\' UTR' in self.featuresInFullSequence):
         #         currentFastaHeader += ('3UTR, ')
             
-        currentFastaHeader = currentFastaHeader[0:len(currentFastaHeader)-2] + ')'
+        currentFastaHeader = currentFastaHeader[0:len(currentFastaHeader)-1] + ')'
         
         #if(printAPDSequences):
         #    currentFeatures = self.featuresInAPDSequence.copy()
@@ -331,8 +331,8 @@ class HLA_Allele:
         # How many introns do we expect lol?
         # TODO Put this in a loop, this is silly.
 
-        #if ('5\' UTR' in self.featuresInFullSequence):
-        #    currentIntronSequence += str(self.featuresInFullSequence['5\' UTR'])
+        if ('5\' UTR' in self.featuresInFullSequence):
+            currentIntronSequence += str(self.featuresInFullSequence['5\' UTR'])
         if ('Intron 1' in self.featuresInFullSequence):
             currentIntronSequence += str(self.featuresInFullSequence['Intron 1'])
         if ('Intron 2' in self.featuresInFullSequence):
@@ -351,8 +351,8 @@ class HLA_Allele:
             currentIntronSequence += str(self.featuresInFullSequence['Intron 8'])
         if ('Intron 9' in self.featuresInFullSequence):
             currentIntronSequence += str(self.featuresInFullSequence['Intron 9'])
-        #if ('3\' UTR' in self.featuresInFullSequence):
-        #    currentIntronSequence += str(self.featuresInFullSequence['3\' UTR'])
+        if ('3\' UTR' in self.featuresInFullSequence):
+            currentIntronSequence += str(self.featuresInFullSequence['3\' UTR'])
 
         # elif('Exon 2' in self.featuresInAPDSequence and
         #   'Simulated Intron 2' in self.featuresInAPDSequence and

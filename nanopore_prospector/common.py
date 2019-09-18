@@ -123,14 +123,17 @@ def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, us
 
         if (getReadFileType(readFileLocation) == 'fasta'):
             #minimapParams = '-ax asm20'
-            #lastargs = "-s 2 -T 0 -Q 0 -a 1" # These parameters work for Last.
+            lastargs = "-s 2 -T 0 -Q 0 -a 1" # These parameters work for Last.
 
-            lastargs = "-s 2 -T 0 -Q 0 -a 1 -b 1 -r 1" # Experimental Args for DQA, because DQA1 is full of structural differences.
+            #LAST manual says that -D100 might work for shorter alignments. This experiment isn't working.
+            #lastargs = "-s 2 -T 1 -Q 0 -a 1 -D 10 -e 5 -d 5"
+
+            #lastargs = "-s 2 -T 0 -Q 0 -a 1 -b 1 -r 1" # Experimental Args for DQA, because DQA1 is full of structural differences.
 
             # Penalizing Insertions heavily. Extension is still a low penalty. I want to minimize insertions.for consensus sequences. 3 seems to be the sweet spot.
             #lastargs = "-s 2 -T 0 -Q 0 -a 1 -A 3"
         elif (getReadFileType(readFileLocation) == 'fastq'):
-            print ('attempting the consensus parameters instead of ONT settings.')
+            #print ('attempting the consensus parameters instead of ONT settings.')
             #minimapParams = '-ax map-ont'
             lastargs = "-s 2 -T 0 -Q 1 -a 1"
         else:
