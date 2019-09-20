@@ -22,12 +22,12 @@ source /home/ben/minionvenv/bin/activate
 cd /home/ben/Github/nanopore_prospector
 
 
-ReadDirectory="/MinIONData/Diagnostics.DataQualityAnalysis/M190905A/InputReads"
-ResultsOutputDirectory="/MinIONData/Diagnostics.DataQualityAnalysis/M190905A/BC13.LocusSorted"
-ReferenceFile="/MinIONData/Diagnostics.DataQualityAnalysis/M190905A/BlastReference/ClassI_BlastReference.fasta"
+ReadFile="/MinIONData/Diagnostics.DataQualityAnalysis/M190905A/BC13.LocusSorted/BC13/HLA-A_Reads.fastq"
+ResultsOutputDirectory="/MinIONData/Diagnostics.DataQualityAnalysis/M190905A/A_HeteroSplit"
+ReferenceFile="/MinIONData/Diagnostics.DataQualityAnalysis/M190905A/HLAReference/A_Reference.fasta"
 
 python Nanopore_Prospector_Main.py \
- --reads=$ReadDirectory \
+ --reads=$ReadFile \
  --outputdir=$ResultsOutputDirectory \
  --reference=$ReferenceFile \
- --action="blastsort"
+ --action="heterosplit"

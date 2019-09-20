@@ -25,6 +25,7 @@ from nanopore_prospector.Nanopore_Prospector_Master_Frame import NanoporeProspec
 from nanopore_prospector.common import getDirectoryAlignmentStats
 from nit_picker.nit_picker import prepareReads
 from allele_wrangler.allele_wrangler import AlleleWrangler
+from punkin_chunker.punkin_chunker import sortDirectory
 from Parse_IMGT_HLA.HLA_XML_to_fasta import parseImgtHla
 from find_homopolymers.find_homopolymers import findHomopolymers
 from convert_reads.convert_reads import fastqToFasta
@@ -35,7 +36,7 @@ from combine_snps.find_files_with_pattern import combineFastaFiles, collectFiles
 
 def readArgs():
     # Trying to be consistent and global with my parameter inputs.
-   
+
     global readInput
     global referenceInput
     global inputFile
@@ -63,7 +64,7 @@ def readArgs():
     minimumReadLength        = None
     maximumReadLength        = None
     minimumQuality           = None
-    maximumQuality           = None  
+    maximumQuality           = None
     sampleID                 = None
     barcodeFileLocation      = None
     snps                     = None
@@ -95,25 +96,25 @@ def readArgs():
             elif opt in ('-v', '--version'):
                 #print (SoftwareVersion)
                 return False
-            
+
             elif opt in ('-r', '--reads'):
                 #print (SoftwareVersion)
                 readInput = arg
-                
+
             elif opt in ("-b", "--barcode"):
                 barcodeFileLocation = arg
-                
+
             elif opt in ("-m", "--minlen"):
                 minimumReadLength = int(arg)
             elif opt in ("-M", "--maxlen"):
                 maximumReadLength = int(arg)
-            
+
             elif opt in ("-q", "--minqual"):
-                minimumQuality = int(arg)   
-                
+                minimumQuality = int(arg)
+
             elif opt in ("-Q", "--maxqual"):
-                maximumQuality = int(arg)    
-                                        
+                maximumQuality = int(arg)
+
             elif opt in ('-R', '--reference'):
                 #print (SoftwareVersion)
                 referenceInput = arg
@@ -167,7 +168,7 @@ def readArgs():
             else:
                 print('Unknown Commandline Option:' + str(opt) + ':' + str(arg))
                 raise Exception('Unknown Commandline Option:' + str(opt) + ':' + str(arg))
-            
+
 
     except GetoptError as err:
         print ('Something seems wrong with your commandline parameters.')
@@ -204,29 +205,46 @@ if __name__=='__main__':
             root = Tk()
             app = NanoporeProspectorMasterFrame(root)
 
-            # Load config file? 
+            # Load config file?
             # Actually maybe this already happened.
-            
+
             # Set input and output directory of the prospector.
             # Just put the text into the text fields, that's probably easier?
-            
+
             app.setInputDir(readInput, False)
             app.setOutputDir(outputDirectory)
             #app.inputDirectoryText.set(readInput)
             #app.outputDirectoryText.set(outputResultDirectory)
             #assignConfigurationValue('output_directory', self.outputDirectoryText.get())
-            
+
             # Start full analysis
             app.runFullAnalysis()
-            
+
         else:
             raise Exception("Can not do a full analysis without a read input and output directory.")
+
+
+    elif(analysisAction=="blastsort"):
+        print('Blast sorting reads....Implement this please.')
+
+        numberThreads = 8
+
+        #
+        # if (isfile(readInput)):
+        #     print ('Read input is a file that exists.')
+        # elif (isdir(readInput)):
+        #     print ('Read input is a directory that exists.')
+        #     sortDirectory(readInput, outputResultDirectory, sortReference, threadCount)
+
+        sortDirectory(readInput, outputDirectory, referenceInput, numberThreads)
 
 
     elif(analysisAction=="preparereads"):
         # Prepare reads and do simple statistics. Works for Reads or, potentially, HLA alleles from IPD, consensus sequences.
         # If a reference file is provided, I can also calculate information on how polymorphic a region is.
         print('Preparing Reads......')
+
+
 
         prepareReads(readInput, outputDirectory, sampleID, barcodeFileLocation, referenceInput, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, False, minimumSnpPctCutoff)
 
@@ -246,7 +264,7 @@ if __name__=='__main__':
         # TODO: add an "analysis action" for just preparing reads. Programming is fun.
         # TODO: I just switched the reference input from None to referenceInput. This changes...that we will actually calculate read stats during htis step. Probably not an issue but it will be slower.
         # TODO: to fix this, i should refactor this prepareReads method. Somehow pass in yes or no on calculate read stats.
-        prepareReads(readInput, preparedReadsFolder, sampleID, barcodeFileLocation, referenceInput, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, False )
+        prepareReads(readInput, preparedReadsFolder, sampleID, barcodeFileLocation, referenceInput, minimumReadLength, maximumReadLength, minimumQuality, maximumQuality, False , 0)
 
         # If we used length/quality filters, the data is in the "Pass" reads.
         if isfile(join(preparedReadsFolder, 'minion_reads_Pass.fastq')):
@@ -383,7 +401,7 @@ if __name__=='__main__':
         raise Exception('Unknown analysis action:' + str(analysisAction))
 
     print('Done.  Yay.')
-    
-    
+
+
 
 
