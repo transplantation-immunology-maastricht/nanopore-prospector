@@ -27,7 +27,7 @@ from Bio.Blast.NCBIXML import parse as parseNCBIXML
 from io import StringIO
 
 from punkin_chunker.blast_result import blastResult
-from nanopore_prospector.common import logMessageToFile, getConfigurationValue
+from nanopore_prospector.common import logMessageToFile, getConfigurationValue, createOutputFile
 
 from nit_picker.minion_read_collection import MinionReadCollection
 
@@ -56,13 +56,13 @@ def createBlastDatabase(HLAReferenceFilename):
         raise Exception('Cannot create BLAST database')
     
 
-# This method is a directory-safe way to open up a write file.
-def createOutputFile(outputfileName):
-    tempDir, tempFilename = split(outputfileName)
-    if not isdir(tempDir):
-        makedirs(tempDir)
-    resultsOutput = open(outputfileName, 'w')
-    return resultsOutput
+# # This method is a directory-safe way to open up a write file.
+# def createOutputFile(outputfileName):
+#     tempDir, tempFilename = split(outputfileName)
+#     if not isdir(tempDir):
+#         makedirs(tempDir)
+#     resultsOutput = open(outputfileName, 'w')
+#     return resultsOutput
 
 
 def sortDirectory(readDirectory, outputDirectory, sortReference, threadCount):
@@ -484,10 +484,11 @@ def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutpu
                     
     # New loop for writing objects.
     # Write all reads.
-    #def outputReadPlotsAndSimpleStats
-    # (self, outputDirectory, plotName,
-    # sampleID, referenceSequenceLocation,
-    # calculateReadStatistics, minAlignmentLength):
+    #def outputReadPlotsAndSimpleStats(self,
+    # outputDirectory, plotName, sampleID,
+    # referenceSequenceLocation, calculateReadStatistics,
+    # minAlignmentLength, minimumSnpPctCutoff):
+
 
     for readCollection in geneLevelReadCollections:
         readCollection.summarizeSimpleReadStats()
@@ -498,6 +499,7 @@ def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutpu
             , None
             , False
             , 0
+            ,0
         )
         
     # Unsorted reads
@@ -508,6 +510,7 @@ def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutpu
         , 'unsorted'
         , None
         , False
+        , 0
         , 0
     )
 

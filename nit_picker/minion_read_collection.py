@@ -1063,8 +1063,10 @@ class MinionReadCollection:
         self.createAlignmentQualityGraph(join(alignmentOutputDir, 'AlignmentQuality.png'))
         self.createSlidingScaleAlignmentQualityGraph(
             join(alignmentOutputDir, 'SlidingScaleAlignmentQuality.png'))
+
         # TODO: I commented this part out because it takes X^2 amount of time.
-        self.writeLDMatrix(alignmentOutputDir)
+        # TODO: Put this as an optional parameter. Right now I'm just not doing it.
+        #self.writeLDMatrix(alignmentOutputDir)
 
         # Loop in the opposite direction, read-by-read then position by position.
         # That loop is more clear for analyzing individual read quality
