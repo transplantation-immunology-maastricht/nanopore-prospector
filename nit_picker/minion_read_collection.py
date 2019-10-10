@@ -33,9 +33,12 @@ class MinionReadCollection:
 
         # These arrays represent all the reads in a batch.
         self.readLengths = []
+        self.readAvgReportedAccuracies = []
         self.readAvgReportedPhredQualities = []
 
         self.readFileLocation = None
+
+        self.forwardReads = None # True/False, but it should be "None" if the collection has forward and reverse, or unknown reads
 
 
         self.gene = None
@@ -92,7 +95,8 @@ class MinionReadCollection:
             # matchPercent.
             self.readMatchPercentages = {}
 
-            self.totalAlignedReadCount = 0
+            #self.totalAlignedReadCount = 0
+            self.alignedReadIDs = []
             self.alignedReadLengths = []
             self.alignedReadPhredScores = []
             self.alignedReadQualityScores = []
@@ -108,6 +112,7 @@ class MinionReadCollection:
         # print('calculating read stats')
         self.readLengths = []
         self.readAvgReportedPhredQualities = []
+        self.readAvgReportedAccuracies = []
 
         for currentRead in self.readCollection:
             currentSeqLength = len(currentRead)
@@ -117,11 +122,14 @@ class MinionReadCollection:
                 phredQualities = currentRead.letter_annotations["phred_quality"]
                 currentAvgPhredQuality = mean(phredQualities)
                 self.readAvgReportedPhredQualities.append(currentAvgPhredQuality)
+                currentAvgAccuracy = 1 - 10 ** ((-1) * currentAvgPhredQuality / 10)
+                self.readAvgReportedAccuracies.append(currentAvgAccuracy)
 
     def concatenate(self, otherCollection):
         self.readCollection = self.readCollection + otherCollection.readCollection
         self.readLengths = self.readLengths + otherCollection.readLengths
         self.readAvgReportedPhredQualities = self.readAvgReportedPhredQualities + otherCollection.readAvgReportedPhredQualities
+        self.readAvgReportedAccuracies = self.readAvgReportedAccuracies + otherCollection.readAvgReportedAccuracies
         # self.summarizeSimpleReadStats()
 
     # TODO: Can i remove referenceSequenceLocation and use the "self" value? Probably.
@@ -139,7 +147,8 @@ class MinionReadCollection:
 
         # Simple Statistics
         simpleStatsOutputFileName = join(outputDirectory, str(sampleID) + '_' + simplePlotName + '.csv')
-        self.printSimpleReadStats(simpleStatsOutputFileName)
+        printSimpleReadStats(simpleStatsOutputFileName, [currentRead.id for currentRead in self.readCollection], self.readLengths, self.readAvgReportedAccuracies, self.readAvgReportedPhredQualities)
+        #(outputFileLocation, readCollection, readLengths, phredQualities, readInputFormat):
 
         # Make up random qualities so we can still make a scatterplot.
         # This is for fasta files, where i want to see read lengths.
@@ -148,6 +157,7 @@ class MinionReadCollection:
         if (self.readInputFormat != 'fastq'):
             randomQualities = random.rand(len(self.readLengths))
             self.readAvgReportedPhredQualities = randomQualities
+            self.readAvgReportedAccuracies = randomQualities
 
         # Scatterplot
         createScatterPlot(plotName
@@ -173,25 +183,7 @@ class MinionReadCollection:
         # readstats is a 2d array, with lengths and qualities.
         return self.readLengths, self.readAvgReportedPhredQualities
 
-    def printSimpleReadStats(self, outputFileLocation):
-        print ('Printing simple statistics to this location:\n' + str(outputFileLocation))
-        simpleStatOutputFile = createOutputFile(outputFileLocation)
 
-        simpleStatOutputFile.write('Read_ID,Length,Avg_Phred_Quality\n')
-        for index, currentRead in enumerate(self.readCollection):
-
-            if (self.readInputFormat == 'fastq'):
-                readQual = self.readAvgReportedPhredQualities[index]
-            else:
-                readQual = 0
-
-            readLength = self.readLengths[index]
-
-            simpleStatOutputFile.write(str(currentRead.id) + ','
-                                       + str(readLength) + ','
-                                       + str(readQual) + '\n')
-
-        simpleStatOutputFile.close()
 
     def writePolymorphicAlleles(self, alignmentSummaryOutputFilename):
 
@@ -868,11 +860,6 @@ class MinionReadCollection:
         alignmentRef = list(parse(referenceSequencelocation, 'fasta'))[0]
         #alignmentRef = list(parse(referenceSequencelocation, 'fasta'))
 
-        # Here I'm getting rid of the QualityStatistcs objects and using a MinIONReadCOllection insted.
-        # qualStats = QualityStatistics(alignmentRef.seq)
-        # I think Im inside my MinionReadCollection object, i think it's not necessary to make a new one.
-        # I still need to set the reference file, because that initializes all the lists I need.
-        #currentReadCollection = createCollectionFromReadFile(self.readFileLocation)
         self.setReferenceSequence(alignmentRef.seq)
 
         write(alignmentRef, createOutputFile(referenceSequenceTargetLocation), 'fasta')
@@ -881,18 +868,11 @@ class MinionReadCollection:
         print('Attempting the alignment, the read file location should be something:' + str(self.readFileLocation))
         # TODO: I changed this to use a read subset to make it faster, that might cause problems later.
         # TODO: I'm passing a "True" as minimum alignmentLength? Fix this, duh. Actually it's not being used. It's an extra argument right now.
-        #alignReads(referenceSequenceTargetLocation, self.readFileLocation, alignmentOutputDir, True, numberThreads, True)
         alignReads(referenceSequenceTargetLocation, self.readFileLocation, alignmentOutputDir, False, numberThreads, minAlignmentLength)
-
 
         # Open Alignment
         alignmentRef = list(parse(referenceSequenceTargetLocation, 'fasta'))[0]
         bamfile = AlignmentFile(join(alignmentOutputDir, 'alignment.bam'), 'rb')
-
-        # Declare variables to store the information.
-        # Commenting this out because....we already have a totalReadCount, I can calculate from list of reads.
-        # What will this break? Maybe it breaks the HLA Allele Analysis...
-        # self.totalReadCount = len(list(parse(readFileLocation, getReadFileType(readFileLocation))))
 
         # Initialize the read dictionary, so we don't lose track of any of these read / alleles
         # TODO: not sure if i should also initialize readMatchPercentages. Because I only want those if the read is mapped.
@@ -1060,9 +1040,11 @@ class MinionReadCollection:
         # TODO: Wait on this until the end? Maybe it's more useful after i calculate read qualities. Maybe not...
         self.writeAlignmentSummary(join(alignmentOutputDir, 'AlignmentSummary.csv'), minimumSnpPctCutoff)
         self.writePolymorphicAlleles(join(alignmentOutputDir, 'AlleleSpecificPolymorphisms.csv'))
-        self.createAlignmentQualityGraph(join(alignmentOutputDir, 'AlignmentQuality.png'))
-        self.createSlidingScaleAlignmentQualityGraph(
-            join(alignmentOutputDir, 'SlidingScaleAlignmentQuality.png'))
+
+        # TODO: I can uncomment this to generate alignment qualities. Commented to save time for now.
+        # TODO: I should parameterize this, as well as the LD matrix.
+        #self.createAlignmentQualityGraph(join(alignmentOutputDir, 'AlignmentQuality.png'))
+        #self.createSlidingScaleAlignmentQualityGraph(join(alignmentOutputDir, 'SlidingScaleAlignmentQuality.png'))
 
         # TODO: I commented this part out because it takes X^2 amount of time.
         # TODO: Put this as an optional parameter. Right now I'm just not doing it.
@@ -1070,11 +1052,11 @@ class MinionReadCollection:
 
         # Loop in the opposite direction, read-by-read then position by position.
         # That loop is more clear for analyzing individual read quality
-        # I can use fetch() to get the reads.
         alignedReads = bamfile.fetch()
+        #self.alignedReadCollection = list(bamfile.fetch())
 
 
-        self.totalAlignedReadCount = bamfile.count()
+        #self.totalAlignedReadCount = bamfile.count()
 
         for index, read in enumerate(alignedReads):
             queryName = read.query_name
@@ -1086,7 +1068,12 @@ class MinionReadCollection:
             BeforeReference = True
             AfterReference = False
 
-            correctAlignedBaseScore = 0
+            #correctAlignedBaseScore = 0
+            matchCount = 0
+            mismatchCount = 0
+            deletionCount = 0
+            insertionCount = 0
+
             # Loop through each aligned base to calculate a alignment score.
             for alignedPairIndex, alignedPair in enumerate(alignedPairs):
 
@@ -1114,23 +1101,32 @@ class MinionReadCollection:
 
                     # Increment/Decrement the score.
                     # TODO: Pass in Alignment penalties, the metrics should maybe change. Maybe. This is my opinion.
+                    # I had used an arbitrary scoring mechanic. I'm switching the algorithm here. There are suggested accuracy formulas in
+                    # this paper: https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1462-9
+
+                    """
                     matchScore = 1
                     mismatchScore = 0
                     deletionScore = 0
                     insertionScore = -1
+                    """
 
                     if (readSeq == refSeq):
                         # print ('Pair(read,ref) ' + str(alignedPair) + ' looks like a match: ' + refSeq)
-                        correctAlignedBaseScore += matchScore
+                        #correctAlignedBaseScore += matchScore
+                        matchCount += 1
                     elif (readSeq == '-'):
                         # print ('Pair(read,ref) ' + str(alignedPair) + ' looks like a deletion: ' + alignmentRef[int(referencePos)])
-                        correctAlignedBaseScore += deletionScore
+                        #correctAlignedBaseScore += deletionScore
+                        deletionCount += 1
                     elif (refSeq == '-'):
                         # print ('Pair(read,ref) ' + str(alignedPair) + ' looks like an insertion: ' + alignedSequence[int(readPos)])
-                        correctAlignedBaseScore += insertionScore
+                        #correctAlignedBaseScore += insertionScore
+                        insertionCount += 1
                     else:
                         # print ('Pair(read,ref) ' + str(alignedPair) + ' looks like a mismatch: ' + refSeq + '->' + readSeq)
-                        correctAlignedBaseScore += mismatchScore
+                        #correctAlignedBaseScore += mismatchScore
+                        mismatchCount += 1
 
                     # If we're outside the reference then we should set a flag. No need to calculate outside the region.
                     if (referencePos is None):
@@ -1144,13 +1140,22 @@ class MinionReadCollection:
 
             # Read Score = MatchScore / Alignment Length.
             # We're only looking at aligned portion, so we use reference_length.
-            readScore = correctAlignedBaseScore / read.reference_length
+            #readScore = correctAlignedBaseScore / read.reference_length
+
+            # Formula from Rang et al 2018.  https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1462-9
+            # They want me to multiply by 100 to make a percent, but I think percentages are stupid. This is where I share that opinion.
+            readScore = matchCount / (matchCount + mismatchCount + insertionCount + deletionCount)
+
+            #print ('Read : ' + str(read.query_name))
+            #print ('Match, Mismatch, Insertion, Deletion: ' + str(matchCount) + ', ' + str(mismatchCount)
+            #       + ', ' + str(insertionCount) + ', ' + str(deletionCount))
+            #print('Read Length = ' + str(read.reference_length) + '\n')
 
             # I have seen with ion torrent the reads are perfect. a readScore of 1 breaks the log10 calculation.
             # I give an arbitrary high read score.
             if (readScore == 1):
                 #print('READ SCORE GREATER THAN 1: ' + str(read))
-                readScore = .999999
+                readScore = .9999999
 
 
             # Pretend this readScore is a correctly mapped percentage. we can calculate a Q(phred) score for each read.
@@ -1162,6 +1167,7 @@ class MinionReadCollection:
             #print ('Phred Score:' + str(phredScore))
 
             # But for the Scatter plot, I want quality vs total read length (query_length). A bit dishonest but probably informative.
+            self.alignedReadIDs.append(read.query_name)
             self.alignedReadLengths.append(read.query_length)
             self.alignedReadPhredScores.append(phredScore)
             self.alignedReadQualityScores.append(readScore)
@@ -1190,9 +1196,6 @@ class MinionReadCollection:
 
                     #print('I found ' + str(len(alignedHomopolymerReadPositions)) + ' aligned read positions:' + str(alignedHomopolymerReadPositions))
                     baseCountMatch = 0
-
-
-
 
                     # Check the aligned bases, count the bases that match.
                     for alignedReadPosition in alignedHomopolymerReadPositions:
@@ -1233,15 +1236,24 @@ class MinionReadCollection:
 
 
 
-        # TODO: Integrate with the code in nit-picker. I feel like there is duplicate logic.
-        # Instead of just printing this, I could call the "output read stats and diagrams" or whatever method that is in nitpicker.
+        # TODO: There is some duplicate logic here, this is doing something similar to outputPlotsAndSimpleStats but I don't know how to fix it right now.
         createScatterPlot('Calculated Mapped-Read Qualities'
-                          , self.alignedReadLengths
-                          , self.alignedReadPhredScores
-                          , "Read Lengths"
-                          , "Avg Read Quality(Phred)"
-                          , join(alignmentOutputDir, 'CalculatedMappedReadQualities.png'))
+            , self.alignedReadLengths
+            , self.alignedReadPhredScores
+            , "Read Lengths"
+            , "Avg Read Quality(Phred)"
+            , join(alignmentOutputDir, 'CalculatedMappedReadQualities.png'))
 
+        #tempAlignedReadCollection = MinionReadCollection(self.alignedReadCollection)
+        #tempAlignedReadCollection.readInputFormat = self.readInputFormat
+        #tempAlignedReadCollection.readLengths = self.alignedReadLengths
+        #tempAlignedReadCollection.readAvgReportedPhredQualities = self.alignedReadPhredScores
+
+
+        simpleStatsOutputFileName = join(alignmentOutputDir, 'CalculatedMappedReadQualities.csv')
+        #printSimpleReadStats(simpleStatsOutputFileName)
+        printSimpleReadStats(simpleStatsOutputFileName, self.alignedReadIDs, self.alignedReadLengths, self.alignedReadQualityScores, self.alignedReadPhredScores)
+                          
 
     def printHomopolymerTuples(self, outputDirectory):
         tupleOutputFile = createOutputFile(join(outputDirectory, 'ReadHomopolymer.csv'))
@@ -1301,15 +1313,6 @@ class MinionReadCollection:
                     tupleSummaryOutputFile.write(',' + str(percentObserved))
 
                 tupleSummaryOutputFile.write('\n')
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1381,3 +1384,26 @@ def writeReadStatsSub(readType, readStats, alignedReadCount, meanAlignedReadLeng
                          )
 
     return statsSubText
+
+
+def printSimpleReadStats(outputFileLocation, readIDs, readLengths, readAccuracies, phredQualities):
+    print ('Printing simple statistics to this location:\n' + str(outputFileLocation))
+    simpleStatOutputFile = createOutputFile(outputFileLocation)
+
+    simpleStatOutputFile.write('Read_ID,Length,Avg_Accuracy,Avg_Phred_Quality\n')
+    for index, currentReadID in enumerate(readIDs):
+
+        #if (readInputFormat == 'fastq'):
+        readQual = phredQualities[index]
+        readAccuracy = readAccuracies[index]
+        #else:
+        #    readQual = 0
+
+        readLength = readLengths[index]
+
+        simpleStatOutputFile.write(str(currentReadID) + ','
+            + str(readLength) + ','
+            + str(readAccuracy) + ','
+            + str(readQual) + '\n')
+
+    simpleStatOutputFile.close()

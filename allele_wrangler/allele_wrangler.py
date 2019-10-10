@@ -137,7 +137,7 @@ class AlleleWrangler():
 
                 self.heterozygousDirectory = join(self.outputRootDirectory, 'HeterozygousAlignment')
                 #alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, useReadSubset, numberThreads, excludeShortAlignments):
-                heterozygousAlignedReadCount = alignReads(finalConsensusSequence,self.readInput,self.heterozygousDirectory, False, self.numberThreads, True)
+                heterozygousAlignedReadCount = alignReads(finalConsensusSequence,self.readInput,self.heterozygousDirectory, False)
                 
                 # Find heterozygous positions
                 coverageResults = self.phaseHeterozygousReads()
@@ -146,7 +146,7 @@ class AlleleWrangler():
                 # write consensus to file. 
                 # copy alignment reference and call it "final" 
                 self.finalAlignmentDirectory = join(self.outputRootDirectory, 'FinalAlignment')                        
-                alignedReadCount = alignReads(finalConsensusSequence,self.readInput,self.finalAlignmentDirectory, False, self.numberThreads, True)
+                alignedReadCount = alignReads(finalConsensusSequence,self.readInput,self.finalAlignmentDirectory, False)
                 
                 finalConsensusFilename = join(self.outputRootDirectory, 'AssembledConsensus.fasta')
                 finalConsensusSequence = list(parse(finalConsensusSequence, 'fasta'))[0]
@@ -380,9 +380,17 @@ class AlleleWrangler():
         # based on the heterozygous positions.  Each heterozygous position is a "dimension" in this space
         distanceArrays = {}
         for readID in readIDs:
+            # TODO: A Bug! Initializing this list as 0s will bias the results.
+            # TODO: Pileupcolumn loop is not hitting each read. Only...half sometimes. Some reads are not analyzed.
+            # Why? SPOTTED IT! bamfile.pileup has a default to maximum read depth of 8000
+
+            #distanceArrays[readID] = list([999] * len(self.snps))
             distanceArrays[readID] = list([0] * len(self.snps))
 
-        pileupIterator = bamfile.pileup(alignmentRef.id)
+
+        # I spotted the bug!!! pileup defaults to maximum 8000 read depth. That's bad!.
+        pileupIterator = bamfile.pileup(alignmentRef.id,max_depth=99999999)
+        #pileupIterator = bamfile.pileup(alignmentRef.id)
         for pileupColumn in pileupIterator:
             currentColumn = pileupColumn.pos
             
@@ -390,9 +398,11 @@ class AlleleWrangler():
             if currentColumn in self.snps:
                 
                 heterozygousPositionIndex = self.snps.index(currentColumn)
+                currentAnalyzedReadCount = 0 # A debugging variable, i dont think I actually use this count.
                 
                 referenceBase = alignmentRef.seq[currentColumn].upper()
                 for pileupRead in pileupColumn.pileups:
+                    currentAnalyzedReadCount += 1
                     readID = pileupRead.alignment.query_name
                     
                     #print('Pos:' + str(currentColumn) + ', Refbase:' + str(referenceBase) + ', Read:' + str(readID))
@@ -404,20 +414,21 @@ class AlleleWrangler():
                     # Maybe, I want to count indels as 0, no distance.
                     # TODO: Something to try: indels are -1. SNPS are 1. Match = 0
                     # Maybe that would help the sorting?
+                    # TODO: Newest idea. Default to 0. 1 is match, -1 is indels. -1 is mismatches. I think that's it.
                     
                     if(pileupRead.is_del == 1):
-                        distanceArrays[readID][heterozygousPositionIndex] = 1
-                        #distanceArrays[readID][heterozygousPositionIndex] = -1
+                        distanceArrays[readID][heterozygousPositionIndex] = -1
                     elif(pileupRead.indel > 0):
-                        distanceArrays[readID][heterozygousPositionIndex] = 1
-                        #distanceArrays[readID][heterozygousPositionIndex] = -1
+                        distanceArrays[readID][heterozygousPositionIndex] = -1
                     else:   
                         currentBase = pileupRead.alignment.query_sequence[pileupRead.query_position].upper()  
                         if(currentBase == referenceBase):
                             #print('Assinging Match. Column=' + str(currentColumn) + ', CurrentBase:' + str(currentBase) + ', HeterozygousPosIndex=' + str(heterozygousPositionIndex))
-                            distanceArrays[readID][heterozygousPositionIndex] = 0
-                        else:
                             distanceArrays[readID][heterozygousPositionIndex] = 1
+                        else:
+                            distanceArrays[readID][heterozygousPositionIndex] = -1
+
+                print('At position ' + str(heterozygousPositionIndex + 1) + ' I analyzed ' + str(currentAnalyzedReadCount) + ' reads.')
 
         self.printDistanceArrays(distanceArrays, join(self.heterozygousDirectory, 'DistanceArrays.csv'))
 
@@ -569,7 +580,7 @@ class AlleleWrangler():
             self.wranglerLog.write('Reference Filename:' + str(currentReferenceSequence) + '\n')
 
 
-            alignReads(currentReferenceSequence,self.readInput,currentIterationSubdirectory, True, self.numberThreads, True)
+            alignReads(currentReferenceSequence,self.readInput,currentIterationSubdirectory, True)
             self.currentAlignmentInfo = self.analyzeAlignment(currentIterationSubdirectory)
             
             # If we want more iterations, I should Recurse and try again.

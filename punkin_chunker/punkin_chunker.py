@@ -65,7 +65,7 @@ def createBlastDatabase(HLAReferenceFilename):
 #     return resultsOutput
 
 
-def sortDirectory(readDirectory, outputDirectory, sortReference, threadCount):
+def sortDirectory(readDirectory, outputDirectory, sortReference, threadCount, separateForwardReverse):
     print ('Sorting this directory of reads:\n' + str(readDirectory))
     
     filesToAnalyze = []
@@ -111,7 +111,7 @@ def sortDirectory(readDirectory, outputDirectory, sortReference, threadCount):
         outputSubDirectory = join(outputDirectory,splitext(currentInputReadFile)[0])
         print('Sorted Reads will go here:\n' + outputSubDirectory)
         
-        sortResults[splitext(currentInputReadFile)[0]] = sortMinIONReadsByGene(fullReadFileName, outputSubDirectory, sortReference, threadCount)
+        sortResults[splitext(currentInputReadFile)[0]] = sortMinIONReadsByGene(fullReadFileName, outputSubDirectory, sortReference, threadCount, separateForwardReverse)
 
     return sortResults
 
@@ -133,7 +133,7 @@ def getReadFormat(fullFilePath):
  
 
 
-def sortMinIONReadsByGene(inputFilename, outputDirectory, HLAReferenceFilename, threadCount):
+def sortMinIONReadsByGene(inputFilename, outputDirectory, HLAReferenceFilename, threadCount, separateForwardReverse):
     #print ('Time to sort our MinION Reads.  Compare against the APD Allele Reference.')
 
     shortFilename = split(inputFilename)[1]
@@ -227,7 +227,7 @@ def sortMinIONReadsByGene(inputFilename, outputDirectory, HLAReferenceFilename, 
 
     #blastResultSets = sortReadArrayByGene(readRecordList, HLAReferenceFilename, sortResultsOutput, shortBlastOutput)
     # The result is an array of minion_read_collection objects.
-    blastResults = writeSortedReadsToFile(combinedResultSets, outputDirectory, finalBlastSummaryOutput)
+    blastResults = writeSortedReadsToFile(combinedResultSets, outputDirectory, finalBlastSummaryOutput, separateForwardReverse)
     
         
         
@@ -369,7 +369,7 @@ def printBlastRecordInformation(blastRecord):
 # TODO: I really should sync those together.  Maybe put the read record right into the blast result object.  Yeah do that.
 # Because It's a pain to keep the two arrays in sync.   With threading it's much harder.
 # I Think i did this, but i'll have to watch to see what i broke.
-def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutput):    
+def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutput, separateForwardReverse):
     print('I will now write the sorted reads to file.')
 
     # An array of readCollections is enough.
@@ -383,105 +383,58 @@ def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutpu
     unsortedReadCollection.gene = None
 
     for resultIndex, currentBlastResult in enumerate(blastResults):
-        
-        #print ('checking this read:' + str(currentBlastResult.readRecord.id))
-        
+
         # if nomenclature fields is empty, this blast result was not assigned to a gene.
         if(len(currentBlastResult.NomenclatureFields) < 1):
-            # This corresponds to if there was no blast results for this read. 
-            
-            #unsortedReadCount += 1
-            #write([currentBlastResult.readRecord], unsortedReadOutputFile, FileOutputFormat)
-            
-            
-            #print ('One unsorted read found:' + str(currentBlastResult.readRecord.id))
-            
             unsortedReadCollection.readCollection.append(currentBlastResult.readRecord)
-            #unsortedReadCollection.readInputFormat = FileOutputFormat
-               
+
         else:
             currentGene = currentBlastResult.Gene
-            #currentGroup = currentBlastResult.AssignedAlleleGroup
-            
-            #print ('This read should belong to this gene:' + str(currentBlastResult.readRecord.id)
-            #    + '\n' + currentBlastResult.Gene)
-    
+
             # If the gene is assigned   
             if(currentGene is not None and len(currentGene) > 0 and currentGene != '-1'):
-         
-                # Print the read to a group level             
-                #currentGeneLevelOutputFile = None
+
                 
                 # Search for existing Gene level outputffiles.
                 foundGeneLevelOutput = False
-
                 
                 # If we already have a gene level output file in our list, use that one.
-                # I keep track of the outputFileIndex on my own, because enumerate() is smarter than I am.
-                #outputFileIndex = 0
-                #for outputFileGene, outputFileObject, readCount in geneLevelOutputFiles:
-                for readCollection in geneLevelReadCollections:
-                    #print ('outputFileObject is this:' + str(outputFileObject))
-                    #print ('outputFileObject[0] is this:' + str(outputFileObject[0]))
-                    if readCollection.gene == currentGene:
-                        #foundGeneLevelOutput = True
-                        #currentGeneLevelOutputFile = outputFileObject
-                        #readCollection.readCollection.append(currentBlastResult.readRecord)
-                        foundGeneLevelOutput = True
-                        # Increment Read Count
-                        #geneLevelOutputFiles[outputFileIndex] = (
-                        #    outputFileGene,
-                        #    outputFileObject,
-                        #    readCount + 1)
-                        if (currentBlastResult.ForwardMatch):
+                # This is searching for genes with no regard to forward/reverse reads.
+                # In this case we will revcom the reverse reads and print them to the same file as forward.
+                if(not separateForwardReverse):
+                    for readCollection in geneLevelReadCollections:
+                        if readCollection.gene == currentGene:
+                            foundGeneLevelOutput = True
+                            if (currentBlastResult.ForwardMatch):
+                                readCollection.readCollection.append(currentBlastResult.readRecord)
+                            else:
+                                reverseRecord = currentBlastResult.readRecord
+                                forwardRecord = reverseRecord.reverse_complement(id=reverseRecord.id+"_reverse_complement", name=True, description=True)
+                                readCollection.readCollection.append(forwardRecord)
+                # What if we want to separate forward/reverse reads?
+                # Different collections for different output files.
+                else:
+                    for readCollection in geneLevelReadCollections:
+                        if (readCollection.gene == currentGene and readCollection.forwardReads == currentBlastResult.ForwardMatch):
+                            foundGeneLevelOutput = True
+
+                            # I am not reverse-complementing the reads. They should stay reverse if they are reverse.
                             readCollection.readCollection.append(currentBlastResult.readRecord)
-                            #write([currentBlastResult.readRecord], currentGeneLevelOutputFile, FileOutputFormat)
-                        else:
-                            #print ('about to check the reverse complement of this read:\n')
-                            #print (str(currentBlastResult.readRecord))
-                            reverseRecord = currentBlastResult.readRecord
-                            forwardRecord = reverseRecord.reverse_complement(id=reverseRecord.id+"_reverse_complement", name=True, description=True)
-                            #SeqIO.write([rec], allReadFileOutputs[barcodeKey], 'fastq')
-                    
-                            #print ('This record is in the reverse direction.')
-                            #write([forwardRecord], currentGeneLevelOutputFile, FileOutputFormat)
-                            readCollection.readCollection.append(forwardRecord)
-                        
-                    
-                    #outputFileIndex += 1
+
+
+
                 # None found, make a new output file.
-                #if currentGeneLevelOutputFile is None:
-                #    currentGeneLevelOutputFile = createOutputFile(join(outputDirectory,'HLA-' + currentGene + '.' + FileOutputFormat))
-                #    geneLevelOutputFiles.append((currentGene,currentGeneLevelOutputFile,1))
                 if not foundGeneLevelOutput:
                     newGeneLevelReadCollection = MinionReadCollection([currentBlastResult.readRecord])
                     newGeneLevelReadCollection.gene = currentGene
                     newGeneLevelReadCollection.readInputFormat = FileOutputFormat
+
+                    # If we are not separating forward/reverse reads
+                    # Change from None to True/False
+                    if (separateForwardReverse):
+                        newGeneLevelReadCollection.forwardReads = currentBlastResult.ForwardMatch
                     geneLevelReadCollections.append(newGeneLevelReadCollection)
-                
-                        
-                # Print the sequence to the Gene level output.
-                #if currentGeneLevelOutputFile != None:
-                    # Is the sequence mapped to the reference in the reverse direction?
-                    
-                #    if (currentBlastResult.ForwardMatch):
-                #        write([currentBlastResult.readRecord], currentGeneLevelOutputFile, FileOutputFormat)
-                #    else:
-                        #print ('about to check the reverse complement of this read:\n')
-                        #print (str(currentBlastResult.readRecord))
-                 #       reverseRecord = currentBlastResult.readRecord
-                 #       forwardRecord = reverseRecord.reverse_complement(id=reverseRecord.id+"_reverse_complement", name=True, description=True)
-                        #SeqIO.write([rec], allReadFileOutputs[barcodeKey], 'fastq')
-                
-                        #print ('This record is in the reverse direction.')
-                  #      write([forwardRecord], currentGeneLevelOutputFile, FileOutputFormat)
-             
-            #else:
-                # In this case we cant find a gene. It's unsorted.
-             
-             
-             
-                    
+
     # New loop for writing objects.
     # Write all reads.
     #def outputReadPlotsAndSimpleStats(self,
@@ -492,10 +445,18 @@ def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutpu
 
     for readCollection in geneLevelReadCollections:
         readCollection.summarizeSimpleReadStats()
+        if (separateForwardReverse):
+            if (readCollection.forwardReads):
+                sortedGeneName = 'HLA-' + str(readCollection.gene) + ".Forward"
+            else:
+                sortedGeneName = 'HLA-' + str(readCollection.gene) + ".Reverse"
+        else:
+            sortedGeneName = 'HLA-' + str(readCollection.gene)
+
         readCollection.outputReadPlotsAndSimpleStats(
             outputDirectory
             , 'Reads'
-            , 'HLA-' + str(readCollection.gene)
+            , sortedGeneName
             , None
             , False
             , 0
@@ -519,10 +480,15 @@ def writeSortedReadsToFile(blastResults, outputDirectory, finalBlastSummaryOutpu
     # Write sort results to the output file and close the Gene and Group specific fasta files.    
     finalBlastSummaryOutput.write('\n\nSorting Read Results:\n')
 
-    #for outputFileObject in geneLevelOutputFiles:
-    #for outputFileObject in sorted(geneLevelOutputFiles, key=itemgetter(2), reverse=True):
-    for readCollection in geneLevelReadCollections: 
-        finalBlastSummaryOutput.write('HLA-' + str(readCollection.gene) + ': ' + str(len(readCollection.readCollection)) + ' Reads\n')
+
+    for readCollection in geneLevelReadCollections:
+        if (separateForwardReverse):
+            if (readCollection.forwardReads):
+                finalBlastSummaryOutput.write('HLA-' + str(readCollection.gene) + ' Forward: ' + str(len(readCollection.readCollection)) + ' Reads\n')
+            else:
+                finalBlastSummaryOutput.write('HLA-' + str(readCollection.gene) + ' Reverse: ' + str(len(readCollection.readCollection)) + ' Reads\n')
+        else:
+            finalBlastSummaryOutput.write('HLA-' + str(readCollection.gene) + ': ' + str(len(readCollection.readCollection)) + ' Reads\n')
         #outputFileObject[1].close()
 
     finalBlastSummaryOutput.write('Unsorted Reads: ' + str(len(unsortedReadCollection.readCollection)) + ' Reads\n')

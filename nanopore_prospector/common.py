@@ -32,7 +32,10 @@ from datetime import datetime
 from pysam import AlignmentFile
 
 
-def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, useReadSubset, numberThreads, minimumAlignmentLength):
+def alignReads(referenceLocation, readFileLocation, alignmentOutputDirectory, useReadSubset):
+    # TODO: I just removed the last two parameters from this method: , numberThreads, minimumAlignmentLength. They weren't being used.
+    # That will probably break things.
+
     # TODO: Consume the number of threads, pretty sure I can pass this into minimap2.
     # TODO: Maybe use #threads+1 because minimap2 always uses one thread for IO during alignment. Double check that.
 
