@@ -227,16 +227,12 @@ if __name__=='__main__':
     elif(analysisAction=="blastsort"):
         print('Blast sorting reads....Implement this please.')
 
+        # TODO: These should be parameterized.
         numberThreads = 8
+        #separateForwardReverse = True # Do we separate forward and reverse reads to two files, or do we put them in the same file?
+        separateForwardReverse = False
 
-        #
-        # if (isfile(readInput)):
-        #     print ('Read input is a file that exists.')
-        # elif (isdir(readInput)):
-        #     print ('Read input is a directory that exists.')
-        #     sortDirectory(readInput, outputResultDirectory, sortReference, threadCount)
-
-        sortDirectory(readInput, outputDirectory, referenceInput, numberThreads)
+        sortDirectory(readInput, outputDirectory, referenceInput, numberThreads, separateForwardReverse)
 
 
     elif(analysisAction=="preparereads"):
